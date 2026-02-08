@@ -117,7 +117,10 @@ export function toEventInput(
             daysOfWeek: frontmatter.daysOfWeek.map((c) => DAYS.indexOf(c)),
             startRecur: frontmatter.startRecur,
             endRecur: frontmatter.endRecur,
-            extendedProps: { isTask: false },
+            extendedProps: {
+                isTask: false,
+                folder: (frontmatter as any).folder || null,
+            },
         };
         if (!frontmatter.allDay) {
             event = {
@@ -213,6 +216,7 @@ export function toEventInput(
                         frontmatter.completed !== undefined &&
                         frontmatter.completed !== null,
                     taskCompleted: frontmatter.completed,
+                    folder: (frontmatter as any).folder || null,
                 },
             };
         } else {
@@ -225,6 +229,7 @@ export function toEventInput(
                         frontmatter.completed !== undefined &&
                         frontmatter.completed !== null,
                     taskCompleted: frontmatter.completed,
+                    folder: (frontmatter as any).folder || null,
                 },
             };
         }

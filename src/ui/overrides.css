@@ -1,3 +1,5 @@
+@import "./linear/linear.css";
+
 .is-phone .fc {
 	height: calc(100% - 4rem);
 }

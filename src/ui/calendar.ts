@@ -15,6 +15,41 @@ import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
 import googleCalendarPlugin from "@fullcalendar/google-calendar";
 import iCalendarPlugin from "@fullcalendar/icalendar";
+import linearPlugin from "./linear/linearPlugin";
+
+// Color palette for folders (light colors that work well with dark text)
+const FOLDER_COLORS = [
+    "#ffcccb", // Light red
+    "#ffc0e3", // Light pink
+    "#e1bee7", // Light purple
+    "#c5cae9", // Light indigo
+    "#b3e5fc", // Light blue
+    "#b2ebf2", // Light cyan
+    "#b2dfdb", // Light teal
+    "#c8e6c9", // Light green
+    "#dcedc8", // Light lime
+    "#fff9c4", // Light yellow
+    "#ffe0b2", // Light orange
+    "#ffccbc", // Light coral
+];
+
+// Normalize folder value (remove quotes and extract from wiki links)
+function normalizeFolder(folder: string | null | undefined): string | null {
+    if (!folder) return null;
+    let cleaned = folder.replace(/^['"]|['"]$/g, "");
+    const match = cleaned.match(/\[\[([^\]]+)\]\]/);
+    return match ? match[1] : cleaned;
+}
+
+// Hash function to consistently map folder names to colors
+function hashStringToColor(str: string): string {
+    if (!str) return "#e0e0e0";
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return FOLDER_COLORS[Math.abs(hash) % FOLDER_COLORS.length];
+}
 
 // There is an issue with FullCalendar RRule support around DST boundaries which is fixed by this monkeypatch:
 // https://github.com/fullcalendar/fullcalendar/issues/5273#issuecomment-1360459342
@@ -94,6 +129,7 @@ export function renderCalendar(
             dayGridPlugin,
             timeGridPlugin,
             listPlugin,
+            linearPlugin,
             // Drag + drop and editing
             interactionPlugin,
             // Remote sources
@@ -113,7 +149,7 @@ export function renderCalendar(
             ? {
                   left: "prev,next today",
                   center: "title",
-                  right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+                  right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek,linearYear",
               }
             : !isMobile
             ? {
@@ -124,7 +160,7 @@ export function renderCalendar(
         footerToolbar: isMobile
             ? {
                   right: "today,prev,next",
-                  left: "timeGrid3Days,timeGridDay,listWeek",
+                  left: "timeGrid3Days,timeGridDay,listWeek,linearYear",
               }
             : false,
 
@@ -138,6 +174,12 @@ export function renderCalendar(
                 type: "timeGrid",
                 duration: { days: 3 },
                 buttonText: "3",
+            },
+            linearYear: {
+                type: "linear",
+                buttonText: isNarrow ? "Y" : "year",
+                titleFormat: { year: "numeric" },
+                titleRangeSeparator: "",
             },
         },
         firstDay: settings?.firstDay,
@@ -172,6 +214,25 @@ export function renderCalendar(
         eventMouseEnter,
 
         eventDidMount: ({ event, el, textColor }) => {
+            // Apply folder-based coloring (light colors work well with dark text)
+            const folder = event.extendedProps?.folder;
+            const normalizedFolder = normalizeFolder(folder);
+            if (normalizedFolder) {
+                const folderColor = hashStringToColor(normalizedFolder);
+                el.style.backgroundColor = folderColor;
+                el.style.borderColor = folderColor;
+                // Force dark text for better readability on light backgrounds
+                el.style.color = "#1a1a1a";
+                const titleEl = el.querySelector(".fc-event-title");
+                if (titleEl) {
+                    (titleEl as HTMLElement).style.color = "#1a1a1a";
+                }
+                const timeEl = el.querySelector(".fc-event-time");
+                if (timeEl) {
+                    (timeEl as HTMLElement).style.color = "#1a1a1a";
+                }
+            }
+
             el.addEventListener("contextmenu", (e) => {
                 e.preventDefault();
                 openContextMenuForEvent && openContextMenuForEvent(event, e);

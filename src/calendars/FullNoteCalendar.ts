@@ -216,7 +216,11 @@ export default class FullNoteCalendar extends EditableCalendar {
     }
 
     async createEvent(event: OFCEvent): Promise<EventLocation> {
-        const path = `${this.directory}/${filenameForEvent(event)}`;
+        // Handle root directory case - omit directory entirely if root
+        const path =
+            this.directory === "/" || this.directory === ""
+                ? filenameForEvent(event)
+                : `${this.directory}/${filenameForEvent(event)}`;
         if (this.app.getAbstractFileByPath(path)) {
             throw new Error(`Event at ${path} already exists.`);
         }
@@ -239,7 +243,12 @@ export default class FullNoteCalendar extends EditableCalendar {
             );
         }
 
-        const updatedPath = `${file.parent.path}/${filenameForEvent(event)}`;
+        // Handle root directory case - omit parent path entirely if root
+        const parentPath = file.parent.path;
+        const updatedPath =
+            parentPath === "" || parentPath === "/"
+                ? filenameForEvent(event)
+                : `${parentPath}/${filenameForEvent(event)}`;
         return { file: { path: updatedPath }, lineNumber: undefined };
     }
 
@@ -288,7 +297,11 @@ export default class FullNoteCalendar extends EditableCalendar {
             throw new Error(`File ${path} not found.`);
         }
         const destDir = toCalendar.directory;
-        const newPath = `${destDir}/${file.name}`;
+        // Handle root directory case - omit directory entirely if root
+        const newPath =
+            destDir === "/" || destDir === ""
+                ? file.name
+                : `${destDir}/${file.name}`;
         updateCacheWithLocation({
             file: { path: newPath },
             lineNumber: undefined,
