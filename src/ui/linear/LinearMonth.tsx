@@ -14,7 +14,6 @@ interface EventData {
 interface LinearMonthProps {
     month: DateTime; // First day of the month
     events: EventData[];
-    optimisticEventOffset: { eventId: string; daysDiff: number } | null;
     onDayClick: (date: DateTime) => void;
     onEventClick: (eventId: string, e: React.MouseEvent) => void;
     onDragStart: (eventId: string, date: DateTime, e: React.DragEvent) => void;
@@ -33,7 +32,6 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
     const {
         month,
         events,
-        optimisticEventOffset,
         onDayClick,
         onEventClick,
         onDragStart,
@@ -48,9 +46,31 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
         isSelecting,
     } = props;
 
+    const gridRef = React.useRef<HTMLDivElement>(null);
+    const [cellWidth, setCellWidth] = React.useState(36);
+
     const daysInMonth = month.daysInMonth;
     const firstDayOfWeek = month.weekday % 7; // 0 = Sunday
     const today = DateTime.now();
+
+    // Measure actual cell width on mount and resize
+    React.useEffect(() => {
+        const measureCellWidth = () => {
+            if (gridRef.current) {
+                const firstCell = gridRef.current.querySelector(
+                    ".linear-cell:not(.linear-cell-empty)"
+                );
+                if (firstCell) {
+                    const width = firstCell.getBoundingClientRect().width;
+                    setCellWidth(width);
+                }
+            }
+        };
+
+        measureCellWidth();
+        window.addEventListener("resize", measureCellWidth);
+        return () => window.removeEventListener("resize", measureCellWidth);
+    }, []);
 
     // Fixed layout: 37 columns (5 weeks + 2 days) to fit worst case: 31-day month starting on Saturday
     const totalColumns = 37;
@@ -105,24 +125,33 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
     const monthStart = month.startOf("day");
     const monthEnd = month.endOf("month").startOf("day");
 
+    console.log(
+        `🟡 ${month.toFormat("MMM")}: Filtering ${events.length} events`
+    );
+
     const monthEvents = events.filter((event, idx) => {
-        // Apply optimistic offset if applicable
-        let eventStart = event.start.startOf("day");
-        let eventEnd = event.end.startOf("day");
+        const eventStart = event.start.startOf("day");
 
-        if (
-            optimisticEventOffset &&
-            event.id === optimisticEventOffset.eventId
-        ) {
-            eventStart = eventStart.plus({
-                days: optimisticEventOffset.daysDiff,
-            });
-            eventEnd = eventEnd.plus({ days: optimisticEventOffset.daysDiff });
+        // STRICT: Only render events that START within this month
+        // This prevents duplication across month boundaries
+        const eventStartsInMonth =
+            eventStart >= monthStart && eventStart <= monthEnd;
+
+        if (eventStartsInMonth) {
+            console.log(
+                `  ✓ ${event.title} (${
+                    event.id
+                }): ${eventStart.toISODate()} STARTS in ${month.toFormat(
+                    "MMM"
+                )}`
+            );
         }
-
-        const matches = eventStart <= monthEnd && eventEnd >= monthStart;
-        return matches;
+        return eventStartsInMonth;
     });
+
+    console.log(
+        `🟡 ${month.toFormat("MMM")}: Rendering ${monthEvents.length} events`
+    );
 
     // Calculate event lanes for stacking overlapping events
     interface EventWithPosition {
@@ -135,20 +164,16 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
     const eventsWithPositions: EventWithPosition[] = [];
     const lanes: { endCell: number }[] = [];
 
-    monthEvents.forEach((event) => {
-        // Apply optimistic offset if applicable
-        let eventStart = event.start.startOf("day");
-        let eventEnd = event.end.startOf("day");
+    // Sort events by start date to ensure proper lane assignment
+    const sortedMonthEvents = [...monthEvents].sort((a, b) => {
+        const aStart = a.start.toMillis();
+        const bStart = b.start.toMillis();
+        return aStart - bStart;
+    });
 
-        if (
-            optimisticEventOffset &&
-            event.id === optimisticEventOffset.eventId
-        ) {
-            eventStart = eventStart.plus({
-                days: optimisticEventOffset.daysDiff,
-            });
-            eventEnd = eventEnd.plus({ days: optimisticEventOffset.daysDiff });
-        }
+    sortedMonthEvents.forEach((event) => {
+        const eventStart = event.start.startOf("day");
+        const eventEnd = event.end.startOf("day");
 
         const monthStart = month.startOf("day");
         // Use exclusive end (first day of next month) to match FullCalendar's exclusive end dates
@@ -178,13 +203,16 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
         const cellsToSpan = Math.min(eventDuration, totalColumns - startCell);
         const endCell = startCell + cellsToSpan - 1;
 
-        // Find first available lane
+        // Find first available lane where the previous event doesn't overlap
+        // Two events don't overlap if one ends before the other starts
         let assignedLane = lanes.findIndex((lane) => lane.endCell < startCell);
 
         if (assignedLane === -1) {
+            // No available lane found, create a new one
             assignedLane = lanes.length;
             lanes.push({ endCell });
         } else {
+            // Update the lane's end position
             lanes[assignedLane].endCell = endCell;
         }
 
@@ -224,6 +252,7 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
                 {month.toFormat("LLL")}
             </div>
             <div
+                ref={gridRef}
                 className="linear-month-grid"
                 style={{
                     display: "flex",
@@ -275,10 +304,8 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
                                 }
                             }}
                             style={{
-                                flex: "0 0 36px",
+                                flex: "1 0 36px",
                                 minWidth: "36px",
-                                width: "36px",
-                                maxWidth: "36px",
                                 border: "0.5px solid #d0d0d0",
                                 minHeight: "32px",
                                 display: "flex",
@@ -355,19 +382,10 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
                 {/* Render events as overlays with calculated lanes */}
                 {eventsWithPositions.map(
                     ({ event, startCell, cellsToSpan, lane }) => {
-                        // Apply optimistic offset for drag start
-                        let eventStart = event.start.startOf("day");
-                        if (
-                            optimisticEventOffset &&
-                            event.id === optimisticEventOffset.eventId
-                        ) {
-                            eventStart = eventStart.plus({
-                                days: optimisticEventOffset.daysDiff,
-                            });
-                        }
+                        const eventStart = event.start.startOf("day");
 
-                        // Calculate absolute position (using fixed pixel widths)
-                        const cellWidthPx = 36; // Must match the cell width in inline styles
+                        // Calculate absolute position (using actual cell width)
+                        const cellWidthPx = cellWidth; // Use measured cell width
                         const left = `${startCell * cellWidthPx}px`;
                         const width = `${cellsToSpan * cellWidthPx}px`;
                         const top = 18 + lane * 22; // 18px for date number, then 22px per lane
@@ -453,11 +471,6 @@ export const LinearMonth = React.memo(
         // Return true if props are equal (skip re-render), false if changed (do re-render)
         const sameMonth = prevProps.month.equals(nextProps.month);
         const sameEvents = prevProps.events === nextProps.events;
-        const sameOptimistic =
-            prevProps.optimisticEventOffset?.eventId ===
-                nextProps.optimisticEventOffset?.eventId &&
-            prevProps.optimisticEventOffset?.daysDiff ===
-                nextProps.optimisticEventOffset?.daysDiff;
         const sameDragOver =
             (prevProps.dragOverDate === null &&
                 nextProps.dragOverDate === null) ||
@@ -480,12 +493,6 @@ export const LinearMonth = React.memo(
                 ) ??
                     false));
 
-        return (
-            sameMonth &&
-            sameEvents &&
-            sameOptimistic &&
-            sameDragOver &&
-            sameSelection
-        );
+        return sameMonth && sameEvents && sameDragOver && sameSelection;
     }
 );

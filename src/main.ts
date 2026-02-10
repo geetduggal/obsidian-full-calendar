@@ -84,15 +84,21 @@ export default class FullCalendarPlugin extends Plugin {
 
         this.registerEvent(
             this.app.metadataCache.on("changed", (file) => {
+                console.log("🟣 METADATA CHANGED:", file.path);
                 this.cache.fileUpdated(file);
             })
         );
+
+        // Note: Removed vault.on("create") and vault.on("modify") handlers
+        // as they were interfering with metadataCache.on("changed")
+        // which is the proper event for detecting file changes including external ones
 
         this.registerEvent(
             this.app.vault.on("rename", (file, oldPath) => {
                 if (file instanceof TFile) {
                     console.debug("FILE RENAMED", file.path);
                     this.cache.deleteEventsAtPath(oldPath);
+                    this.cache.fileUpdated(file);
                 }
             })
         );

@@ -26,6 +26,8 @@ export default createPlugin({
                 };
             },
             duration: { years: 1 },
+            dateIncrement: { years: 1 },
+            dateAlignment: "year",
         },
     },
 });

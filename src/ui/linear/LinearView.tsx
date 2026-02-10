@@ -38,7 +38,6 @@ interface LinearViewState {
     selectionStart: DateTime | null;
     selectionCurrent: DateTime | null;
     isSelecting: boolean;
-    optimisticEventOffset: { eventId: string; daysDiff: number } | null;
     dragPreview: {
         eventId: string;
         title: string;
@@ -64,6 +63,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
     private lastDateProfileKey: string = "";
     private filterInputRef: React.RefObject<HTMLInputElement> =
         React.createRef();
+    private recentlyUpdatedEvents: Set<string> = new Set(); // Track events we just updated
 
     constructor(props: any) {
         super(props);
@@ -74,7 +74,6 @@ export class LinearView extends React.Component<any, LinearViewState> {
             selectionStart: null,
             selectionCurrent: null,
             isSelecting: false,
-            optimisticEventOffset: null,
             dragPreview: null,
             folderFilters: [],
             filterSearchText: "",
@@ -107,23 +106,8 @@ export class LinearView extends React.Component<any, LinearViewState> {
         return Array.from(folders).sort();
     }
 
-    shouldComponentUpdate(nextProps: any, nextState: LinearViewState) {
-        // Create a stable key for the date range to detect real changes
-        const currentDateKey = this.props.dateProfile
-            ? `${this.props.dateProfile.currentRange.start.getTime()}-${this.props.dateProfile.currentRange.end.getTime()}`
-            : "";
-        const nextDateKey = nextProps.dateProfile
-            ? `${nextProps.dateProfile.currentRange.start.getTime()}-${nextProps.dateProfile.currentRange.end.getTime()}`
-            : "";
-
-        // Only re-render if:
-        // 1. State changed (drag operations, selections)
-        // 2. Date range actually changed (not just a new object reference)
-        const stateChanged = this.state !== nextState;
-        const dateRangeChanged = currentDateKey !== nextDateKey;
-
-        return stateChanged || dateRangeChanged;
-    }
+    // Removed shouldComponentUpdate to allow React to handle all updates
+    // This ensures external file changes trigger re-renders properly
 
     render() {
         const { dateProfile } = this.props;
@@ -155,89 +139,92 @@ export class LinearView extends React.Component<any, LinearViewState> {
             (seg: any) => seg.def?.allDay === true
         );
 
-        // Create a cache key based on event count and IDs to detect changes
-        const renderKey = allSegs
-            .map((seg: any) => seg.def.publicId)
-            .sort()
-            .join(",");
+        // Disable caching - always recompute events to avoid stale data
+        // This ensures drag operations always show current positions
+        this.cachedEvents = allSegs
+            .map((seg: any) => {
+                // Try to get the start date from different possible properties
+                const startJS =
+                    seg.start ||
+                    seg.range?.start ||
+                    seg.def?.recurringDef?.typeData?.startTime;
+                const endJS =
+                    seg.end ||
+                    seg.range?.end ||
+                    seg.def?.recurringDef?.typeData?.endTime;
 
-        // Cache base events (without optimistic offset) - only recompute if events actually changed
-        if (this.lastRenderKey !== renderKey) {
-            this.lastRenderKey = renderKey;
-            this.lastEventCount = allSegs.length;
-            this.cachedEvents = allSegs
-                .map((seg: any) => {
-                    // Try to get the start date from different possible properties
-                    const startJS =
-                        seg.start ||
-                        seg.range?.start ||
-                        seg.def?.recurringDef?.typeData?.startTime;
-                    const endJS =
-                        seg.end ||
-                        seg.range?.end ||
-                        seg.def?.recurringDef?.typeData?.endTime;
+                if (!startJS) {
+                    console.warn(`No start date for "${seg.def.title}"`);
+                    return null;
+                }
 
-                    if (!startJS) {
-                        console.warn(`No start date for "${seg.def.title}"`);
-                        return null;
-                    }
+                // Get ISO date string directly from the Date object to avoid timezone issues
+                // For all-day events, we only care about the date part, not the time
+                const startDateStr = startJS.toISOString().split("T")[0];
+                const endDateStr = endJS
+                    ? endJS.toISOString().split("T")[0]
+                    : null;
 
-                    // Get ISO date string directly from the Date object to avoid timezone issues
-                    // For all-day events, we only care about the date part, not the time
-                    const startDateStr = startJS.toISOString().split("T")[0];
-                    const endDateStr = endJS
-                        ? endJS.toISOString().split("T")[0]
-                        : null;
+                const startDate = DateTime.fromISO(startDateStr);
+                const endDate = endDateStr
+                    ? DateTime.fromISO(endDateStr)
+                    : startDate.plus({ days: 1 });
 
-                    const startDate = DateTime.fromISO(startDateStr);
-                    const endDate = endDateStr
-                        ? DateTime.fromISO(endDateStr)
-                        : startDate.plus({ days: 1 });
+                if (!startDate.isValid) {
+                    console.warn(
+                        `Invalid start date for "${seg.def.title}":`,
+                        startJS
+                    );
+                    return null;
+                }
 
-                    if (!startDate.isValid) {
-                        console.warn(
-                            `Invalid start date for "${seg.def.title}":`,
-                            startJS
-                        );
-                        return null;
-                    }
+                // Get folder from extended props and derive color
+                const folder = seg.def.extendedProps?.folder || null;
+                const normalizedFolder = this.normalizeFolder(folder);
 
-                    // Get folder from extended props and derive color
-                    const folder = seg.def.extendedProps?.folder || null;
-                    const normalizedFolder = this.normalizeFolder(folder);
+                const folderColor = normalizedFolder
+                    ? hashStringToColor(normalizedFolder)
+                    : null;
+                const eventColor =
+                    folderColor ||
+                    seg.def.ui.backgroundColor ||
+                    seg.ui.backgroundColor ||
+                    "#3788d8";
+                // Use white text for folder-colored events (vibrant colors), otherwise use event's default
+                const textColor = folderColor
+                    ? "#ffffff"
+                    : seg.def.ui.textColor || seg.ui.textColor || "#000";
 
-                    const folderColor = normalizedFolder
-                        ? hashStringToColor(normalizedFolder)
-                        : null;
-                    const eventColor =
-                        folderColor ||
-                        seg.def.ui.backgroundColor ||
-                        seg.ui.backgroundColor ||
-                        "#3788d8";
-                    // Use white text for folder-colored events (vibrant colors), otherwise use event's default
-                    const textColor = folderColor
-                        ? "#ffffff"
-                        : seg.def.ui.textColor || seg.ui.textColor || "#000";
-
-                    return {
-                        id: seg.def.publicId,
-                        title: seg.def.title,
-                        color: eventColor,
-                        textColor: textColor,
-                        start: startDate,
-                        end: endDate,
-                        isEditable: seg.def.ui.editable !== false,
-                        folder: folder,
-                    };
-                })
-                .filter(
-                    (event): event is NonNullable<typeof event> =>
-                        event !== null
-                );
-        }
+                return {
+                    id: seg.def.publicId,
+                    title: seg.def.title,
+                    color: eventColor,
+                    textColor: textColor,
+                    start: startDate,
+                    end: endDate,
+                    isEditable: seg.def.ui.editable !== false,
+                    folder: folder,
+                };
+            })
+            .filter(
+                (event): event is NonNullable<typeof event> => event !== null
+            );
 
         // Use cached events (same reference) - optimistic offset will be applied in LinearMonth
         let events = this.cachedEvents!;
+
+        // DEBUG: Log event IDs and positions
+        const eventSummary = events
+            .map((e) => `${e.id}@${e.start.toISODate()}`)
+            .join(", ");
+        console.log("🔵 LinearView events:", eventSummary);
+
+        // Check for duplicates
+        const ids = events.map((e) => e.id);
+        const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+        if (duplicates.length > 0) {
+            console.error("❌ DUPLICATE EVENT IDS:", duplicates);
+        }
 
         // Get unique folder values for autocomplete
         const uniqueFolders = this.getUniqueFolders();
@@ -620,10 +607,8 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                 key={index}
                                 className="linear-header-day"
                                 style={{
-                                    flex: "0 0 36px",
+                                    flex: "1 0 36px",
                                     minWidth: "36px",
-                                    width: "36px",
-                                    maxWidth: "36px",
                                     textAlign: "center",
                                     fontSize: "0.75em",
                                     fontWeight: 600,
@@ -640,7 +625,6 @@ export class LinearView extends React.Component<any, LinearViewState> {
                         key={month.toISODate()}
                         month={month}
                         events={events}
-                        optimisticEventOffset={this.state.optimisticEventOffset}
                         onDayClick={this.handleDayClick}
                         onEventClick={this.handleEventClick}
                         onDragStart={this.handleDragStart}
@@ -747,81 +731,86 @@ export class LinearView extends React.Component<any, LinearViewState> {
             return;
         }
 
-        // PHASE 1: INSTANT VISUAL UPDATE using flushSync for synchronous render
-        // Use flushSync to force immediate synchronous update (no batching)
-        flushSync(() => {
+        // Get calendar and event
+        const calendar = (window as any).fc;
+        if (!calendar) {
+            console.error("No calendar instance found on window.fc");
             this.setState({
-                optimisticEventOffset: { eventId: draggedEventId, daysDiff },
                 draggedEventId: null,
                 draggedEventOriginalDate: null,
                 dragOverDate: null,
                 dragPreview: null,
             });
+            return;
+        }
+
+        const event = calendar.getEventById(draggedEventId);
+        if (!event) {
+            console.error(`Event ${draggedEventId} not found`);
+            this.setState({
+                draggedEventId: null,
+                draggedEventOriginalDate: null,
+                dragOverDate: null,
+                dragPreview: null,
+            });
+            return;
+        }
+
+        // Store original dates for revert
+        const oldStartDate = event.start;
+        const oldEndDate = event.end;
+
+        const oldStart = DateTime.fromJSDate(event.start);
+        const oldEnd = event.end
+            ? DateTime.fromJSDate(event.end)
+            : oldStart.plus({ days: 1 });
+        const duration = oldEnd.diff(oldStart, "days").days;
+
+        const newStart = oldStart.plus({ days: daysDiff });
+        const newEnd = newStart.plus({ days: duration });
+
+        console.log(
+            `🔷 Drag complete - saving event ${draggedEventId} to file`
+        );
+
+        // Store old event state for revert
+        const oldEventState = event.toPlainObject();
+
+        // Update the event immediately for visual feedback
+        event.setStart(newStart.toJSDate());
+        event.setEnd(newEnd.toJSDate());
+
+        // Clear drag state
+        this.setState({
+            draggedEventId: null,
+            draggedEventOriginalDate: null,
+            dragOverDate: null,
+            dragPreview: null,
         });
 
-        // PHASE 2: SAVE TO FULLCALENDAR (async, non-blocking)
-        // Use double RAF to ensure browser paints before we start the save
-        requestAnimationFrame(() => {
-            requestAnimationFrame(async () => {
-                const calendar = (window as any).fc;
-                if (!calendar) {
-                    console.error("No calendar instance found on window.fc");
-                    this.setState({ optimisticEventOffset: null });
-                    return;
-                }
-
-                const event = calendar.getEventById(draggedEventId);
-                if (!event) {
-                    console.error(`Event ${draggedEventId} not found`);
-                    this.setState({ optimisticEventOffset: null });
-                    return;
-                }
-
-                // Store original dates before modifying
-                const oldStartDate = event.start;
-                const oldEndDate = event.end;
-
-                const oldStart = DateTime.fromJSDate(event.start);
-                const oldEnd = event.end
-                    ? DateTime.fromJSDate(event.end)
-                    : oldStart.plus({ days: 1 });
-                const duration = oldEnd.diff(oldStart, "days").days;
-
-                const newStart = oldStart.plus({ days: daysDiff });
-                const newEnd = newStart.plus({ days: duration });
-
-                // Modify the event for real
-                event.setStart(newStart.toJSDate());
-                event.setEnd(newEnd.toJSDate());
-
-                // Try to save using eventDrop handler (this might do file I/O)
-                const eventDropHandler = calendar.getOption("eventDrop");
-                if (eventDropHandler) {
-                    try {
-                        await eventDropHandler({
-                            event: event,
-                            oldEvent: event,
-                            revert: () => {
-                                event.setStart(oldStartDate);
-                                event.setEnd(oldEndDate);
-                                this.setState({ optimisticEventOffset: null });
-                            },
-                            delta: { days: daysDiff },
-                            jsEvent: e.nativeEvent,
-                            view: calendar.view,
-                        });
-                    } catch (error) {
-                        console.error("Error in eventDrop handler:", error);
+        // Save via the proper modifyEvent callback
+        const modifyEventHandler = calendar.getOption("modifyEvent");
+        if (modifyEventHandler) {
+            modifyEventHandler(event, event)
+                .then((success: any) => {
+                    console.log(
+                        `🔷 Save result for ${draggedEventId}:`,
+                        success
+                    );
+                    if (!success) {
+                        console.error("Failed to save event, reverting");
                         event.setStart(oldStartDate);
                         event.setEnd(oldEndDate);
                     }
-                }
-
-                // Clear optimistic offset after successful save
-                this.setState({ optimisticEventOffset: null });
-                // The actual event data now matches what we're showing
-            });
-        });
+                })
+                .catch((error: any) => {
+                    console.error("Error saving event:", error);
+                    event.setStart(oldStartDate);
+                    event.setEnd(oldEndDate);
+                });
+        } else {
+            console.error("No modifyEvent handler found!");
+        }
     };
 
     handleSelectionStart = (date: DateTime) => {

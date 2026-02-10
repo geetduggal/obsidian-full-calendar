@@ -452,15 +452,18 @@ export default class EventCache {
      * @returns nothing
      */
     async fileUpdated(file: TFile): Promise<void> {
-        console.debug("fileUpdated() called for file", file.path);
+        console.log("🔴 EventCache.fileUpdated() called for:", file.path);
 
         // Get all calendars that contain events stored in this file.
         const calendars = [...this.calendars.values()].flatMap((c) =>
             c instanceof EditableCalendar && c.containsPath(file.path) ? c : []
         );
 
+        console.log("🔴 Found calendars for this file:", calendars.length);
+
         // If no calendars exist, return early.
         if (calendars.length === 0) {
+            console.log("🔴 NO CALENDARS CONTAIN THIS PATH - EXITING");
             return;
         }
 
@@ -489,11 +492,10 @@ export default class EventCache {
 
             // If no events have changed from what's in the cache, then there's no need to update the event store.
             if (!eventsHaveChanged) {
-                console.debug(
-                    "events have not changed, do not update store or view."
-                );
+                console.log("🔴 Events have NOT changed - skipping update");
                 return;
             }
+            console.log("🔴 Events HAVE changed - updating store and views!");
             console.debug(
                 "events have changed, updating store and views...",
                 oldEvents,
@@ -525,6 +527,13 @@ export default class EventCache {
             eventsToAdd.push(...newEventsWithIds);
         }
 
+        console.log(
+            "🔴 Calling updateViews with",
+            idsToRemove.length,
+            "to remove,",
+            eventsToAdd.length,
+            "to add"
+        );
         this.updateViews(idsToRemove, eventsToAdd);
     }
 

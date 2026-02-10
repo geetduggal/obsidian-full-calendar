@@ -141,6 +141,10 @@ export function renderCalendar(
         initialView:
             settings?.initialView?.[isNarrow ? "mobile" : "desktop"] ||
             (isNarrow ? "timeGrid3Days" : "timeGridWeek"),
+        validRange: {
+            start: "1900-01-01",
+            end: "2100-12-31",
+        },
         nowIndicator: true,
         scrollTimeReset: false,
         dayMaxEvents: true,

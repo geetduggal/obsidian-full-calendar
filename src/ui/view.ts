@@ -307,6 +307,7 @@ export class CalendarView extends ItemView {
             this.callback = null;
         }
         this.callback = this.plugin.cache.on("update", (payload) => {
+            console.log("🟢 CALENDAR VIEW RECEIVED UPDATE:", payload.type);
             if (payload.type === "resync") {
                 this.fullCalendarView?.removeAllEventSources();
                 const sources = this.translateSources();
@@ -316,6 +317,12 @@ export class CalendarView extends ItemView {
                 return;
             } else if (payload.type === "events") {
                 const { toRemove, toAdd } = payload;
+                console.log(
+                    "🟢 Events update - removing:",
+                    toRemove.length,
+                    "adding:",
+                    toAdd.length
+                );
                 console.debug("updating view from cache...", {
                     toRemove,
                     toAdd,
@@ -343,6 +350,7 @@ export class CalendarView extends ItemView {
                         eventInput!,
                         calendarId
                     );
+                    console.log("🟢 Added event to calendar:", id);
                     console.debug("event that was added", addedEvent);
                 });
             } else if (payload.type == "calendar") {

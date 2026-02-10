@@ -27,6 +27,10 @@ export abstract class EditableCalendar extends Calendar {
      * Returns true if this calendar sources events from the given path.
      */
     containsPath(path: string): boolean {
+        // Handle root directory case
+        if (this.directory === "/" || this.directory === "") {
+            return true; // Root directory contains all paths
+        }
         return path.startsWith(this.directory);
     }
 

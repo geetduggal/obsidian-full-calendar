@@ -32,10 +32,8 @@
 }
 
 .linear-header-days > * {
-    flex: 0 0 36px;
+    flex: 1 0 36px; /* Allow growth, prevent shrinkage, 36px base */
     min-width: 36px;
-    width: 36px;
-    max-width: 36px;
 }
 
 .linear-header-day {
@@ -78,11 +76,8 @@
 }
 
 .linear-month-grid > .linear-cell {
-    flex-shrink: 0 !important; /* Never shrink */
-    flex-grow: 0 !important; /* Never grow */
+    flex: 1 0 36px !important; /* Allow growth, prevent shrinkage, 36px base */
     min-width: 36px !important; /* Enforce minimum width */
-    width: 36px !important; /* Fixed width */
-    max-width: 36px !important; /* Prevent growing */
 }
 
 .linear-month-grid > .linear-event-overlay {
@@ -266,11 +261,8 @@
     }
 
     .linear-month-grid > .linear-cell {
+        flex: 1 0 36px !important; /* Allow growth, prevent shrinkage, 36px base */
         min-width: 36px !important; /* Larger minimum for touch targets */
-        width: 36px !important;
-        max-width: 36px !important;
-        flex-shrink: 0 !important;
-        flex-grow: 0 !important;
     }
 
     .linear-event-overlay {
@@ -315,11 +307,8 @@
     }
 
     .linear-month-grid > .linear-cell {
+        flex: 1 0 36px !important; /* Allow growth, prevent shrinkage, 36px base */
         min-width: 36px !important;
-        width: 36px !important;
-        max-width: 36px !important;
-        flex-shrink: 0 !important;
-        flex-grow: 0 !important;
     }
 
     .linear-header-day {
