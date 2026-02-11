@@ -297,6 +297,18 @@ export class CalendarView extends ItemView {
         });
         // @ts-ignore
         window.fc = this.fullCalendarView;
+        // @ts-ignore - Store modifyEvent callback for LinearView to access
+        window.fcModifyEvent = async (eventId: string, newEvent: any) => {
+            try {
+                return await this.plugin.cache.updateEventWithId(
+                    eventId,
+                    newEvent
+                );
+            } catch (e: any) {
+                console.error(e);
+                return false;
+            }
+        };
 
         this.registerDomEvent(this.containerEl, "mouseenter", () => {
             this.plugin.cache.revalidateRemoteCalendars();

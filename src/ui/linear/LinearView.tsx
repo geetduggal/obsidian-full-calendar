@@ -770,15 +770,8 @@ export class LinearView extends React.Component<any, LinearViewState> {
         const newEnd = newStart.plus({ days: duration });
 
         console.log(
-            `🔷 Drag complete - saving event ${draggedEventId} to file`
+            `🔷 Drag complete - saving event ${draggedEventId} to file (NO optimistic update)`
         );
-
-        // Store old event state for revert
-        const oldEventState = event.toPlainObject();
-
-        // Update the event immediately for visual feedback
-        event.setStart(newStart.toJSDate());
-        event.setEnd(newEnd.toJSDate());
 
         // Clear drag state
         this.setState({
@@ -788,28 +781,36 @@ export class LinearView extends React.Component<any, LinearViewState> {
             dragPreview: null,
         });
 
-        // Save via the proper modifyEvent callback
-        const modifyEventHandler = calendar.getOption("modifyEvent");
+        // Save to file - cache update will handle the visual change
+        // NO optimistic rendering to prevent duplicates
+        const modifyEventHandler = (window as any).fcModifyEvent;
         if (modifyEventHandler) {
-            modifyEventHandler(event, event)
+            // Convert EventApi to OFCEvent format
+            const newEventData = {
+                title: event.title,
+                date: newStart.toISODate(),
+                endDate: newEnd.toISODate(),
+                allDay: event.allDay,
+                type: "single" as const,
+            };
+
+            modifyEventHandler(draggedEventId, newEventData)
                 .then((success: any) => {
                     console.log(
                         `🔷 Save result for ${draggedEventId}:`,
                         success
                     );
                     if (!success) {
-                        console.error("Failed to save event, reverting");
-                        event.setStart(oldStartDate);
-                        event.setEnd(oldEndDate);
+                        console.error("Failed to save event");
+                        // Cache update will restore original position
                     }
                 })
                 .catch((error: any) => {
                     console.error("Error saving event:", error);
-                    event.setStart(oldStartDate);
-                    event.setEnd(oldEndDate);
+                    // Cache update will restore original position
                 });
         } else {
-            console.error("No modifyEvent handler found!");
+            console.error("No fcModifyEvent handler found on window!");
         }
     };
 

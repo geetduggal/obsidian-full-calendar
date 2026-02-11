@@ -22,6 +22,7 @@ import CalDAVCalendar from "./calendars/CalDAVCalendar";
 
 export default class FullCalendarPlugin extends Plugin {
     settings: FullCalendarSettings = DEFAULT_SETTINGS;
+    private fileUpdateDebounce: Map<string, NodeJS.Timeout> = new Map();
     cache: EventCache = new EventCache({
         local: (info) =>
             info.type === "local"
@@ -85,7 +86,23 @@ export default class FullCalendarPlugin extends Plugin {
         this.registerEvent(
             this.app.metadataCache.on("changed", (file) => {
                 console.log("🟣 METADATA CHANGED:", file.path);
-                this.cache.fileUpdated(file);
+
+                // Debounce file updates to prevent rapid duplicate calls
+                const existingTimeout = this.fileUpdateDebounce.get(file.path);
+                if (existingTimeout) {
+                    clearTimeout(existingTimeout);
+                }
+
+                const timeout = setTimeout(() => {
+                    console.log(
+                        "🟣 Processing file update after debounce:",
+                        file.path
+                    );
+                    this.cache.fileUpdated(file);
+                    this.fileUpdateDebounce.delete(file.path);
+                }, 300); // 300ms debounce
+
+                this.fileUpdateDebounce.set(file.path, timeout);
             })
         );
 

@@ -129,24 +129,16 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
         `🟡 ${month.toFormat("MMM")}: Filtering ${events.length} events`
     );
 
-    const monthEvents = events.filter((event, idx) => {
+    const monthEvents = events.filter((event) => {
         const eventStart = event.start.startOf("day");
+        const eventEnd = event.end.startOf("day");
 
-        // STRICT: Only render events that START within this month
-        // This prevents duplication across month boundaries
-        const eventStartsInMonth =
-            eventStart >= monthStart && eventStart <= monthEnd;
+        // OVERLAP: Render events that overlap with this month
+        // Allows multi-month events to span across boundaries
+        const eventOverlapsMonth =
+            eventStart <= monthEnd && eventEnd >= monthStart;
 
-        if (eventStartsInMonth) {
-            console.log(
-                `  ✓ ${event.title} (${
-                    event.id
-                }): ${eventStart.toISODate()} STARTS in ${month.toFormat(
-                    "MMM"
-                )}`
-            );
-        }
-        return eventStartsInMonth;
+        return eventOverlapsMonth;
     });
 
     console.log(

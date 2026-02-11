@@ -357,9 +357,10 @@ export default class EventCache {
             }
         );
 
-        this.updateViews(
-            [eventId],
-            [{ id: eventId, calendarId: calendar.id, event: newEvent }]
+        // DON'T call updateViews here - let file watcher handle it
+        // This prevents duplicate updates (one from here, one from file watcher)
+        console.log(
+            "✅ Event updated in store, waiting for file watcher to update views"
         );
         return true;
     }
