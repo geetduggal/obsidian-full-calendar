@@ -87,14 +87,14 @@ function newFrontmatter(fields: Partial<OFCEvent>): string {
     return (
         "---\n" +
         Object.entries(fields)
-            .filter(([_, v]) => v !== undefined)
-            .map(([k, v]) => stringifyYamlLine(k, v))
+            .filter(([_, v]) => v !== undefined && v !== null && v !== "")
+            .map(([k, v]) => stringifyYamlLine(k, v as PrintableAtom))
             .join("\n") +
         "\n---\n"
     );
 }
 
-function modifyFrontmatterString(
+export function modifyFrontmatterString(
     page: string,
     modifications: Partial<OFCEvent>
 ): string {
@@ -102,8 +102,8 @@ function modifyFrontmatterString(
     let newFrontmatter: string[] = [];
     if (!frontmatter) {
         newFrontmatter = Object.entries(modifications)
-            .filter(([k, v]) => v !== undefined)
-            .map(([k, v]) => stringifyYamlLine(k, v));
+            .filter(([k, v]) => v !== undefined && v !== null && v !== "")
+            .map(([k, v]) => stringifyYamlLine(k, v as PrintableAtom));
         page = "\n" + page;
     } else {
         const linesAdded: Set<string | number | symbol> = new Set();
@@ -121,9 +121,11 @@ function modifyFrontmatterString(
             }
             const key = keys[0];
             linesAdded.add(key);
-            const newVal: PrintableAtom | undefined = modifications[key];
+            const newVal = modifications[key];
             if (newVal !== undefined) {
-                newFrontmatter.push(stringifyYamlLine(key, newVal));
+                newFrontmatter.push(
+                    stringifyYamlLine(key, newVal as PrintableAtom)
+                );
             } else {
                 // Just push the old line if we don't have a modification.
                 newFrontmatter.push(line);

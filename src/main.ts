@@ -16,6 +16,8 @@ import EventCache from "./core/EventCache";
 import { ObsidianIO } from "./ObsidianAdapter";
 import { launchCreateModal } from "./ui/event_modal";
 import FullNoteCalendar from "./calendars/FullNoteCalendar";
+import BoxCalendar from "./calendars/BoxCalendar";
+import ShelveCalendar from "./calendars/ShelveCalendar";
 import DailyNoteCalendar from "./calendars/DailyNoteCalendar";
 import ICSCalendar from "./calendars/ICSCalendar";
 import CalDAVCalendar from "./calendars/CalDAVCalendar";
@@ -30,6 +32,22 @@ export default class FullCalendarPlugin extends Plugin {
                       new ObsidianIO(this.app),
                       info.color,
                       info.directory
+                  )
+                : null,
+        box: (info) =>
+            info.type === "box"
+                ? new BoxCalendar(
+                      new ObsidianIO(this.app),
+                      info.color,
+                      info.value
+                  )
+                : null,
+        shelve: (info) =>
+            info.type === "shelve"
+                ? new ShelveCalendar(
+                      new ObsidianIO(this.app),
+                      info.color,
+                      info.value
                   )
                 : null,
         dailynote: (info) =>

@@ -86,6 +86,8 @@ export function addCalendarButton(
             (d) =>
                 (dropdown = d.addOptions({
                     local: "Full note",
+                    box: "Box property",
+                    shelve: "Shelve property",
                     dailynote: "Daily Note",
                     icloud: "iCloud",
                     caldav: "CalDAV",

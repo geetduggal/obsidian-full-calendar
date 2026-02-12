@@ -20,11 +20,82 @@ export function launchCreateModal(
                 name: cal.name,
             };
         });
+
+    // Collect all property keys and values for autocomplete
+    const allEventSources = plugin.cache.getAllEvents();
+    const propertyKeys = new Set<string>();
+    const propertyValues = new Map<string, Set<string>>();
+
+    allEventSources.forEach((source) => {
+        source.events.forEach((cachedEvent) => {
+            const eventData = cachedEvent.event as any;
+            for (const [key, value] of Object.entries(eventData)) {
+                // Skip standard event fields
+                if (
+                    [
+                        "title",
+                        "id",
+                        "type",
+                        "date",
+                        "endDate",
+                        "allDay",
+                        "startTime",
+                        "endTime",
+                        "daysOfWeek",
+                        "startRecur",
+                        "endRecur",
+                        "completed",
+                        "startDate",
+                        "rrule",
+                        "skipDates",
+                    ].includes(key)
+                ) {
+                    continue;
+                }
+                if (value && typeof value === "string") {
+                    propertyKeys.add(key);
+                    if (!propertyValues.has(key)) {
+                        propertyValues.set(key, new Set());
+                    }
+                    propertyValues.get(key)!.add(value);
+                }
+            }
+        });
+    });
+
+    // Get all markdown files for wiki-link autocomplete
+    const allFiles = plugin.app.vault
+        .getMarkdownFiles()
+        .map((file) => file.basename);
+
+    // Auto-fill from active LinearView filter if present
+    const activeFilter = (window as any).linearViewActiveFilter;
+    if (
+        activeFilter &&
+        activeFilter.type &&
+        activeFilter.values &&
+        activeFilter.values.length > 0
+    ) {
+        // Use the most recently added filter value (last in array)
+        const latestFilterValue =
+            activeFilter.values[activeFilter.values.length - 1];
+        // Set the property dynamically based on filter type
+        (partialEvent as any)[activeFilter.type] = latestFilterValue;
+    }
+
     new ReactModal(plugin.app, async (closeModal) =>
         React.createElement(EditEvent, {
             initialEvent: partialEvent,
             calendars,
             defaultCalendarIndex: 0,
+            allPropertyKeys: Array.from(propertyKeys).sort(),
+            allPropertyValues: new Map(
+                Array.from(propertyValues.entries()).map(([k, v]) => [
+                    k,
+                    Array.from(v).sort(),
+                ])
+            ),
+            allFiles: allFiles.sort(),
             submit: async (data, calendarIndex) => {
                 const calendarId = calendars[calendarIndex].id;
                 try {
@@ -60,11 +131,66 @@ export function launchEditModal(plugin: FullCalendarPlugin, eventId: string) {
 
     const calIdx = calendars.findIndex(({ id }) => id === calId);
 
+    // Collect all property keys and values for autocomplete
+    const allEventSources = plugin.cache.getAllEvents();
+    const propertyKeys = new Set<string>();
+    const propertyValues = new Map<string, Set<string>>();
+
+    allEventSources.forEach((source) => {
+        source.events.forEach((cachedEvent) => {
+            const eventData = cachedEvent.event as any;
+            for (const [key, value] of Object.entries(eventData)) {
+                // Skip standard event fields
+                if (
+                    [
+                        "title",
+                        "id",
+                        "type",
+                        "date",
+                        "endDate",
+                        "allDay",
+                        "startTime",
+                        "endTime",
+                        "daysOfWeek",
+                        "startRecur",
+                        "endRecur",
+                        "completed",
+                        "startDate",
+                        "rrule",
+                        "skipDates",
+                    ].includes(key)
+                ) {
+                    continue;
+                }
+                if (value && typeof value === "string") {
+                    propertyKeys.add(key);
+                    if (!propertyValues.has(key)) {
+                        propertyValues.set(key, new Set());
+                    }
+                    propertyValues.get(key)!.add(value);
+                }
+            }
+        });
+    });
+
+    // Get all markdown files for wiki-link autocomplete
+    const allFiles = plugin.app.vault
+        .getMarkdownFiles()
+        .map((file) => file.basename);
+
     new ReactModal(plugin.app, async (closeModal) =>
         React.createElement(EditEvent, {
             initialEvent: eventToEdit,
             calendars,
             defaultCalendarIndex: calIdx,
+            allPropertyKeys: Array.from(propertyKeys).sort(),
+            allPropertyValues: new Map(
+                Array.from(propertyValues.entries()).map(([k, v]) => [
+                    k,
+                    Array.from(v).sort(),
+                ])
+            ),
+            allFiles: allFiles.sort(),
             submit: async (data, calendarIndex) => {
                 try {
                     if (calendarIndex !== calIdx) {

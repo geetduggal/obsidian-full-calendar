@@ -216,6 +216,35 @@ function PasswordInput<T extends Partial<CalendarInfo>>({
     );
 }
 
+function ValueInput<T extends Partial<CalendarInfo>>({
+    source,
+    changeListener,
+    label,
+    description,
+}: BasicProps<T> & { label: string; description: string }) {
+    let sourceWithValue = source as SourceWith<T, { value: undefined }>;
+    return (
+        <div className="setting-item">
+            <div className="setting-item-info">
+                <div className="setting-item-name">{label}</div>
+                <div className="setting-item-description">{description}</div>
+            </div>
+            <div className="setting-item-control">
+                <input
+                    required
+                    type="text"
+                    placeholder={`Enter ${label.toLowerCase()} value`}
+                    value={sourceWithValue.value || ""}
+                    onChange={changeListener((x) => ({
+                        ...sourceWithValue,
+                        value: x,
+                    }))}
+                />
+            </div>
+        </div>
+    );
+}
+
 interface AddCalendarProps {
     source: Partial<CalendarInfo>;
     directories: string[];
@@ -270,6 +299,22 @@ export const AddCalendarSource = ({
                         source={setting}
                         changeListener={makeChangeListener}
                         directories={directories}
+                    />
+                )}
+                {source.type === "box" && (
+                    <ValueInput
+                        source={setting}
+                        changeListener={makeChangeListener}
+                        label="Box value"
+                        description="Value of the 'box' property to filter events by"
+                    />
+                )}
+                {source.type === "shelve" && (
+                    <ValueInput
+                        source={setting}
+                        changeListener={makeChangeListener}
+                        label="Shelve value"
+                        description="Value of the 'shelve' property to filter events by"
                     />
                 )}
                 {source.type === "dailynote" && (

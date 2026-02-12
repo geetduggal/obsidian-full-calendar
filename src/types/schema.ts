@@ -58,11 +58,12 @@ export const TimeSchema = z.discriminatedUnion("allDay", [
     }),
 ]);
 
-export const CommonSchema = z.object({
-    title: z.string(),
-    id: z.string().optional(),
-    folder: z.string().optional(),
-});
+export const CommonSchema = z
+    .object({
+        title: z.string(),
+        id: z.string().optional(),
+    })
+    .passthrough(); // Allow any additional properties
 
 export const EventSchema = z.discriminatedUnion("type", [
     z.object({
@@ -127,6 +128,6 @@ type Json =
     | false
     | null;
 
-export function serializeEvent(obj: OFCEvent): Json {
+export function serializeEvent(obj: OFCEvent): any {
     return { ...obj };
 }

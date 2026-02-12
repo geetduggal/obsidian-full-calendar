@@ -81,6 +81,115 @@ const combineDateTimeStrings = (date: string, time: string): string | null => {
 
 const DAYS = "UMTWRFS";
 
+// Color palette matching light pastels for all views
+const PROPERTY_COLORS = [
+    "#c5e1a5", // Light green
+    "#64b5f6", // Light blue
+    "#fff59d", // Light yellow
+    "#ffab91", // Light orange/coral
+    "#ce93d8", // Light purple
+    "#80deea", // Light cyan
+    "#f48fb1", // Light pink
+    "#a5d6a7", // Light mint
+    "#90caf9", // Sky blue
+    "#ffcc80", // Peach
+    "#b39ddb", // Lavender
+    "#81c784", // Green
+];
+
+// Hash function to consistently map property values to colors
+function hashStringToColor(str: string): string {
+    if (!str) return "#e0e0e0";
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return PROPERTY_COLORS[Math.abs(hash) % PROPERTY_COLORS.length];
+}
+
+// Helper to normalize property value (remove quotes and extract from wiki links)
+function normalizeValue(value: string | null): string | null {
+    if (!value) return null;
+    let cleaned = value.replace(/^['"]|['"]$/g, "");
+    const match = cleaned.match(/\[\[([^\]]+)\]\]/);
+    return match ? match[1] : cleaned;
+}
+
+// Extract custom properties (anything beyond standard OFCEvent fields)
+function getCustomProperties(frontmatter: OFCEvent): Record<string, any> {
+    const standardFields = new Set([
+        "title",
+        "id",
+        "type",
+        "date",
+        "endDate",
+        "allDay",
+        "startTime",
+        "endTime",
+        "daysOfWeek",
+        "startRecur",
+        "endRecur",
+        "completed",
+        "startDate",
+        "rrule",
+        "skipDates",
+    ]);
+    const custom: Record<string, any> = {};
+    for (const [key, value] of Object.entries(frontmatter)) {
+        if (
+            !standardFields.has(key) &&
+            value !== undefined &&
+            value !== null &&
+            value !== ""
+        ) {
+            custom[key] = value;
+        }
+    }
+    return custom;
+}
+
+// Get color for event based on custom properties
+function getEventColor(frontmatter: OFCEvent): {
+    backgroundColor?: string;
+    borderColor?: string;
+    textColor?: string;
+} {
+    const customProps = getCustomProperties(frontmatter);
+
+    // Find first non-empty property value to use for coloring
+    // Priority: folder > box > shelve > any other property
+    const propertyPriority = ["folder", "box", "shelve"];
+    let colorProperty = null;
+
+    for (const key of propertyPriority) {
+        if (customProps[key]) {
+            colorProperty = normalizeValue(customProps[key] as string);
+            break;
+        }
+    }
+
+    // If no priority property, use first available custom property
+    if (!colorProperty) {
+        for (const [key, value] of Object.entries(customProps)) {
+            if (value && key !== "isTask" && key !== "taskCompleted") {
+                colorProperty = normalizeValue(value as string);
+                break;
+            }
+        }
+    }
+
+    if (colorProperty) {
+        const color = hashStringToColor(colorProperty);
+        return {
+            backgroundColor: color,
+            borderColor: color,
+            textColor: "#1a1a1a",
+        };
+    }
+
+    return {};
+}
+
 export function dateEndpointsToFrontmatter(
     start: Date,
     end: Date,
@@ -106,10 +215,12 @@ export function toEventInput(
     id: string,
     frontmatter: OFCEvent
 ): EventInput | null {
+    const colors = getEventColor(frontmatter);
     let event: EventInput = {
         id,
         title: frontmatter.title,
         allDay: frontmatter.allDay,
+        ...colors,
     };
     if (frontmatter.type === "recurring") {
         event = {
@@ -119,7 +230,7 @@ export function toEventInput(
             endRecur: frontmatter.endRecur,
             extendedProps: {
                 isTask: false,
-                folder: (frontmatter as any).folder || null,
+                ...getCustomProperties(frontmatter),
             },
         };
         if (!frontmatter.allDay) {
@@ -216,7 +327,7 @@ export function toEventInput(
                         frontmatter.completed !== undefined &&
                         frontmatter.completed !== null,
                     taskCompleted: frontmatter.completed,
-                    folder: (frontmatter as any).folder || null,
+                    ...getCustomProperties(frontmatter),
                 },
             };
         } else {
@@ -229,7 +340,7 @@ export function toEventInput(
                         frontmatter.completed !== undefined &&
                         frontmatter.completed !== null,
                     taskCompleted: frontmatter.completed,
-                    folder: (frontmatter as any).folder || null,
+                    ...getCustomProperties(frontmatter),
                 },
             };
         }

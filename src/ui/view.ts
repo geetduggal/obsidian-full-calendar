@@ -154,6 +154,10 @@ export class CalendarView extends ItemView {
                     // The fix is just to subtract 1 from the end date before processing.
                     end.setDate(end.getDate() - 1);
                 }
+                // Year view should always create all-day events
+                if (viewType === "linearYear") {
+                    allDay = true;
+                }
                 const partialEvent = dateEndpointsToFrontmatter(
                     start,
                     end,

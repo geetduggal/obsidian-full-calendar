@@ -17,20 +17,20 @@ import googleCalendarPlugin from "@fullcalendar/google-calendar";
 import iCalendarPlugin from "@fullcalendar/icalendar";
 import linearPlugin from "./linear/linearPlugin";
 
-// Color palette for folders (light colors that work well with dark text)
-const FOLDER_COLORS = [
-    "#ffcccb", // Light red
-    "#ffc0e3", // Light pink
-    "#e1bee7", // Light purple
-    "#c5cae9", // Light indigo
-    "#b3e5fc", // Light blue
-    "#b2ebf2", // Light cyan
-    "#b2dfdb", // Light teal
-    "#c8e6c9", // Light green
-    "#dcedc8", // Light lime
-    "#fff9c4", // Light yellow
-    "#ffe0b2", // Light orange
-    "#ffccbc", // Light coral
+// Color palette matching interop.ts and LinearView.tsx (light pastels)
+const PROPERTY_COLORS = [
+    "#c5e1a5", // Light green
+    "#64b5f6", // Light blue
+    "#fff59d", // Light yellow
+    "#ffab91", // Light orange/coral
+    "#ce93d8", // Light purple
+    "#80deea", // Light cyan
+    "#f48fb1", // Light pink
+    "#a5d6a7", // Light mint
+    "#90caf9", // Sky blue
+    "#ffcc80", // Peach
+    "#b39ddb", // Lavender
+    "#81c784", // Green
 ];
 
 // Normalize folder value (remove quotes and extract from wiki links)
@@ -41,14 +41,14 @@ function normalizeFolder(folder: string | null | undefined): string | null {
     return match ? match[1] : cleaned;
 }
 
-// Hash function to consistently map folder names to colors
+// Hash function to consistently map property values to colors
 function hashStringToColor(str: string): string {
     if (!str) return "#e0e0e0";
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    return FOLDER_COLORS[Math.abs(hash) % FOLDER_COLORS.length];
+    return PROPERTY_COLORS[Math.abs(hash) % PROPERTY_COLORS.length];
 }
 
 // There is an issue with FullCalendar RRule support around DST boundaries which is fixed by this monkeypatch:
@@ -218,13 +218,40 @@ export function renderCalendar(
         eventMouseEnter,
 
         eventDidMount: ({ event, el, textColor }) => {
-            // Apply folder-based coloring (light colors work well with dark text)
-            const folder = event.extendedProps?.folder;
-            const normalizedFolder = normalizeFolder(folder);
-            if (normalizedFolder) {
-                const folderColor = hashStringToColor(normalizedFolder);
-                el.style.backgroundColor = folderColor;
-                el.style.borderColor = folderColor;
+            // Apply property-based coloring with same priority as other views
+            // Priority: folder > box > shelve > any other property
+            const propertyPriority = ["folder", "box", "shelve"];
+            let colorProperty = null;
+
+            for (const key of propertyPriority) {
+                const value = event.extendedProps?.[key];
+                if (value) {
+                    colorProperty = normalizeFolder(value);
+                    break;
+                }
+            }
+
+            // If no priority property, use first available custom property
+            if (!colorProperty && event.extendedProps) {
+                for (const [key, value] of Object.entries(
+                    event.extendedProps
+                )) {
+                    if (
+                        value &&
+                        key !== "isTask" &&
+                        key !== "taskCompleted" &&
+                        typeof value === "string"
+                    ) {
+                        colorProperty = normalizeFolder(value);
+                        break;
+                    }
+                }
+            }
+
+            if (colorProperty) {
+                const propertyColor = hashStringToColor(colorProperty);
+                el.style.backgroundColor = propertyColor;
+                el.style.borderColor = propertyColor;
                 // Force dark text for better readability on light backgrounds
                 el.style.color = "#1a1a1a";
                 const titleEl = el.querySelector(".fc-event-title");

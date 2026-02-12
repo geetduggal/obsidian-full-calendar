@@ -61,6 +61,8 @@ const initializerMap = (
 ): CalendarInitializerMap => ({
     FOR_TEST_ONLY: cb,
     local: () => null,
+    box: () => null,
+    shelve: () => null,
     dailynote: () => null,
     ical: () => null,
     caldav: () => null,

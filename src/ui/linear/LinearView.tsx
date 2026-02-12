@@ -5,30 +5,30 @@ import { sliceEvents } from "@fullcalendar/core";
 import { LinearMonth } from "./LinearMonth";
 import "./linear.css";
 
-// Color palette for folders (vibrant colors for year view - white text works well)
-const FOLDER_COLORS = [
-    "#e53935", // Vibrant red
-    "#d81b60", // Vibrant pink
-    "#8e24aa", // Vibrant purple
-    "#5e35b1", // Vibrant indigo
-    "#1e88e5", // Vibrant blue
-    "#00acc1", // Vibrant cyan
-    "#00897b", // Vibrant teal
-    "#43a047", // Vibrant green
-    "#7cb342", // Vibrant lime
-    "#fdd835", // Vibrant yellow
-    "#fb8c00", // Vibrant orange
-    "#f4511e", // Vibrant deep orange
+// Color palette matching FullCalendar's default event colors (light pastels)
+const PROPERTY_COLORS = [
+    "#c5e1a5", // Light green (most common in month view)
+    "#64b5f6", // Light blue
+    "#fff59d", // Light yellow
+    "#ffab91", // Light orange/coral
+    "#ce93d8", // Light purple
+    "#80deea", // Light cyan
+    "#f48fb1", // Light pink
+    "#a5d6a7", // Light mint
+    "#90caf9", // Sky blue
+    "#ffcc80", // Peach
+    "#b39ddb", // Lavender
+    "#81c784", // Green
 ];
 
-// Hash function to consistently map folder names to colors
+// Hash function to consistently map property values to colors
 function hashStringToColor(str: string): string {
-    if (!str) return "#e0e0e0"; // Default gray for no folder
+    if (!str) return "#e0e0e0";
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    return FOLDER_COLORS[Math.abs(hash) % FOLDER_COLORS.length];
+    return PROPERTY_COLORS[Math.abs(hash) % PROPERTY_COLORS.length];
 }
 
 interface LinearViewState {
@@ -46,9 +46,12 @@ interface LinearViewState {
         targetDate: DateTime;
         sourceDate: DateTime;
     } | null;
-    folderFilters: string[]; // Multiple filters with OR logic
+    filterType: string;
+    filters: string[]; // Multiple filters with OR logic
     filterSearchText: string;
-    showFolderDropdown: boolean;
+    showFilterDropdown: boolean;
+    filterKeySearchText: string;
+    showFilterKeyDropdown: boolean;
 }
 
 interface OptimisticTransform {
@@ -63,10 +66,16 @@ export class LinearView extends React.Component<any, LinearViewState> {
     private lastDateProfileKey: string = "";
     private filterInputRef: React.RefObject<HTMLInputElement> =
         React.createRef();
+    private filterKeyInputRef: React.RefObject<HTMLInputElement> =
+        React.createRef();
     private recentlyUpdatedEvents: Set<string> = new Set(); // Track events we just updated
 
     constructor(props: any) {
         super(props);
+
+        // Restore filter state from window if available
+        const savedFilter = (window as any).linearViewFilterState;
+
         this.state = {
             draggedEventId: null,
             draggedEventOriginalDate: null,
@@ -75,39 +84,127 @@ export class LinearView extends React.Component<any, LinearViewState> {
             selectionCurrent: null,
             isSelecting: false,
             dragPreview: null,
-            folderFilters: [],
+            filterType: savedFilter?.filterType || "folder",
+            filters: savedFilter?.filters || [],
             filterSearchText: "",
-            showFolderDropdown: false,
+            showFilterDropdown: false,
+            filterKeySearchText: "",
+            showFilterKeyDropdown: false,
         };
     }
 
-    // Helper to normalize folder value (remove quotes and extract from wiki links if needed)
-    private normalizeFolder(folder: string | null): string | null {
-        if (!folder) return null;
+    // Helper to normalize property value (remove quotes and extract from wiki links if needed)
+    private normalizeValue(value: string | null): string | null {
+        if (!value) return null;
         // Remove surrounding quotes if present
-        let cleaned = folder.replace(/^['"]|['"]$/g, "");
+        let cleaned = value.replace(/^['"]|['"]$/g, "");
         // Extract from [[Filename]] format if present
         const match = cleaned.match(/\[\[([^\]]+)\]\]/);
         return match ? match[1] : cleaned;
     }
 
-    // Get all unique folder values from events
-    private getUniqueFolders(): string[] {
+    // Get all unique property keys from events
+    private getUniquePropertyKeys(): string[] {
         if (!this.cachedEvents) {
             return [];
         }
 
-        const folders = new Set<string>();
+        const keys = new Set<string>();
         this.cachedEvents.forEach((event) => {
-            const normalized = this.normalizeFolder(event.folder);
-            if (normalized) folders.add(normalized);
+            if (event.customProps) {
+                for (const key of Object.keys(event.customProps)) {
+                    if (key !== "isTask" && key !== "taskCompleted") {
+                        keys.add(key);
+                    }
+                }
+            }
         });
 
-        return Array.from(folders).sort();
+        return Array.from(keys).sort();
+    }
+
+    // Get all unique values for the current filter type
+    private getUniqueValues(): string[] {
+        if (!this.cachedEvents) {
+            return [];
+        }
+
+        const values = new Set<string>();
+        this.cachedEvents.forEach((event) => {
+            const value = event.customProps?.[this.state.filterType];
+            if (value) {
+                const normalized = this.normalizeValue(value);
+                if (normalized) values.add(normalized);
+            }
+        });
+
+        return Array.from(values).sort();
+    }
+
+    // Get all markdown files for wiki-link autocomplete
+    private getAllFiles(): string[] {
+        // Access Obsidian vault through global app instance
+        const app = (window as any).app;
+        if (!app || !app.vault) {
+            return [];
+        }
+        return app.vault
+            .getMarkdownFiles()
+            .map((file: any) => file.basename)
+            .sort();
+    }
+
+    // Get suggestions for filter value input
+    private getFilterValueSuggestions(): string[] {
+        if (!this.state.filterSearchText) {
+            return this.getUniqueValues();
+        }
+
+        // Check if user is typing a wiki-link
+        const wikiLinkMatch = this.state.filterSearchText.match(/\[\[([^\]]*)/);
+        if (wikiLinkMatch) {
+            const searchTerm = wikiLinkMatch[1].toLowerCase();
+            return this.getAllFiles()
+                .filter((file) => file.toLowerCase().includes(searchTerm))
+                .slice(0, 10)
+                .map((file) => `[[${file}]]`);
+        }
+
+        // Regular value autocomplete
+        const searchLower = this.state.filterSearchText.toLowerCase();
+        return this.getUniqueValues()
+            .filter((value) => value.toLowerCase().includes(searchLower))
+            .slice(0, 20);
+    }
+
+    // Get suggestions for filter key input
+    private getFilterKeySuggestions(): string[] {
+        if (!this.state.filterKeySearchText) {
+            return this.getUniquePropertyKeys();
+        }
+
+        const searchLower = this.state.filterKeySearchText.toLowerCase();
+        return this.getUniquePropertyKeys()
+            .filter((key) => key.toLowerCase().includes(searchLower))
+            .slice(0, 20);
     }
 
     // Removed shouldComponentUpdate to allow React to handle all updates
     // This ensures external file changes trigger re-renders properly
+
+    componentDidUpdate() {
+        // Store the current filter in window so modal can access it for auto-fill
+        (window as any).linearViewActiveFilter = {
+            type: this.state.filterType,
+            values: this.state.filters,
+        };
+
+        // Persist filter state across component recreations
+        (window as any).linearViewFilterState = {
+            filterType: this.state.filterType,
+            filters: this.state.filters,
+        };
+    }
 
     render() {
         const { dateProfile } = this.props;
@@ -178,21 +275,47 @@ export class LinearView extends React.Component<any, LinearViewState> {
                     return null;
                 }
 
-                // Get folder from extended props and derive color
-                const folder = seg.def.extendedProps?.folder || null;
-                const normalizedFolder = this.normalizeFolder(folder);
+                // Get all custom properties from extended props
+                const customProps = seg.def.extendedProps || {};
 
-                const folderColor = normalizedFolder
-                    ? hashStringToColor(normalizedFolder)
+                // Find first non-empty property value to use for coloring
+                // Priority: folder > box > shelve > any other property
+                const propertyPriority = ["folder", "box", "shelve"];
+                let colorProperty = null;
+
+                for (const key of propertyPriority) {
+                    if (customProps[key]) {
+                        colorProperty = this.normalizeValue(customProps[key]);
+                        break;
+                    }
+                }
+
+                // If no priority property, use first available custom property
+                if (!colorProperty) {
+                    for (const [key, value] of Object.entries(customProps)) {
+                        if (
+                            value &&
+                            key !== "isTask" &&
+                            key !== "taskCompleted"
+                        ) {
+                            colorProperty = this.normalizeValue(
+                                value as string
+                            );
+                            break;
+                        }
+                    }
+                }
+
+                const propertyColor = colorProperty
+                    ? hashStringToColor(colorProperty)
                     : null;
                 const eventColor =
-                    folderColor ||
+                    propertyColor ||
                     seg.def.ui.backgroundColor ||
                     seg.ui.backgroundColor ||
                     "#3788d8";
-                // Use white text for folder-colored events (vibrant colors), otherwise use event's default
-                const textColor = folderColor
-                    ? "#ffffff"
+                const textColor = propertyColor
+                    ? "#1a1a1a"
                     : seg.def.ui.textColor || seg.ui.textColor || "#000";
 
                 return {
@@ -203,7 +326,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                     start: startDate,
                     end: endDate,
                     isEditable: seg.def.ui.editable !== false,
-                    folder: folder,
+                    customProps: customProps, // Store all custom properties
                 };
             })
             .filter(
@@ -226,28 +349,16 @@ export class LinearView extends React.Component<any, LinearViewState> {
             console.error("❌ DUPLICATE EVENT IDS:", duplicates);
         }
 
-        // Get unique folder values for autocomplete
-        const uniqueFolders = this.getUniqueFolders();
+        // Get suggestions for the filter value input
+        const filteredValues = this.getFilterValueSuggestions().slice(0, 20);
 
-        // Filter folders based on search text
-        const filteredFolders = this.state.filterSearchText
-            ? uniqueFolders
-                  .filter((folder) =>
-                      folder
-                          .toLowerCase()
-                          .includes(this.state.filterSearchText.toLowerCase())
-                  )
-                  .slice(0, 20)
-            : uniqueFolders.slice(0, 20);
-
-        // Apply folder filters with OR logic
-        if (this.state.folderFilters.length > 0) {
+        // Apply filters with OR logic based on filter type
+        if (this.state.filters.length > 0) {
             events = events.filter((e) => {
-                const eventFolder = this.normalizeFolder(e.folder);
-                return (
-                    eventFolder &&
-                    this.state.folderFilters.includes(eventFolder)
-                );
+                const eventValue = e.customProps?.[this.state.filterType];
+                if (!eventValue) return false;
+                const normalized = this.normalizeValue(eventValue);
+                return normalized && this.state.filters.includes(normalized);
             });
         }
 
@@ -263,7 +374,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                 onMouseUp={this.handleGlobalMouseUp}
                 onMouseLeave={this.handleGlobalMouseUp}
             >
-                {/* Folder filter */}
+                {/* Property filter */}
                 <div
                     className="linear-filter-bar"
                     style={{
@@ -291,31 +402,160 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                 color: "var(--text-muted)",
                             }}
                         >
-                            Filter by folder:
+                            Filter by
+                        </span>
+                        <div
+                            style={{ position: "relative", minWidth: "120px" }}
+                        >
+                            <input
+                                ref={this.filterKeyInputRef}
+                                type="text"
+                                placeholder="Property key..."
+                                value={
+                                    this.state.filterKeySearchText ||
+                                    this.state.filterType
+                                }
+                                onChange={(e) => {
+                                    this.setState({
+                                        filterKeySearchText: e.target.value,
+                                        showFilterKeyDropdown: true,
+                                    });
+                                }}
+                                onFocus={() => {
+                                    this.setState({
+                                        filterKeySearchText: "",
+                                        showFilterKeyDropdown: true,
+                                    });
+                                }}
+                                onBlur={() => {
+                                    setTimeout(() => {
+                                        // If user didn't select anything, restore the current filterType
+                                        if (
+                                            this.state.filterKeySearchText &&
+                                            !this.getFilterKeySuggestions().includes(
+                                                this.state.filterKeySearchText
+                                            )
+                                        ) {
+                                            this.setState({
+                                                filterKeySearchText: "",
+                                                showFilterKeyDropdown: false,
+                                            });
+                                        } else {
+                                            this.setState({
+                                                showFilterKeyDropdown: false,
+                                            });
+                                        }
+                                    }, 200);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Escape") {
+                                        this.setState({
+                                            filterKeySearchText: "",
+                                            showFilterKeyDropdown: false,
+                                        });
+                                    }
+                                }}
+                                style={{
+                                    padding: "4px 8px",
+                                    fontSize: "0.85em",
+                                    borderRadius: "4px",
+                                    border: "1px solid var(--background-modifier-border)",
+                                    backgroundColor:
+                                        "var(--background-primary)",
+                                    color: "var(--text-normal)",
+                                    width: "100%",
+                                }}
+                            />
+                            {this.state.showFilterKeyDropdown &&
+                                this.getFilterKeySuggestions().length > 0 && (
+                                    <div
+                                        style={{
+                                            position: "absolute",
+                                            top: "100%",
+                                            left: 0,
+                                            right: 0,
+                                            marginTop: "4px",
+                                            maxHeight: "200px",
+                                            overflowY: "auto",
+                                            backgroundColor:
+                                                "var(--background-primary)",
+                                            border: "1px solid var(--background-modifier-border)",
+                                            borderRadius: "4px",
+                                            boxShadow:
+                                                "0 4px 12px rgba(0,0,0,0.15)",
+                                            zIndex: 2000,
+                                        }}
+                                    >
+                                        {this.getFilterKeySuggestions().map(
+                                            (key) => (
+                                                <div
+                                                    key={key}
+                                                    onMouseDown={() => {
+                                                        this.setState({
+                                                            filterType: key,
+                                                            filterKeySearchText:
+                                                                "",
+                                                            showFilterKeyDropdown:
+                                                                false,
+                                                            filters: [], // Clear filters when changing type
+                                                            filterSearchText:
+                                                                "",
+                                                        });
+                                                    }}
+                                                    style={{
+                                                        padding: "6px 10px",
+                                                        cursor: "pointer",
+                                                        fontSize: "0.85em",
+                                                        borderBottom:
+                                                            "1px solid var(--background-modifier-border)",
+                                                    }}
+                                                    onMouseEnter={(e) =>
+                                                        (e.currentTarget.style.backgroundColor =
+                                                            "var(--background-modifier-hover)")
+                                                    }
+                                                    onMouseLeave={(e) =>
+                                                        (e.currentTarget.style.backgroundColor =
+                                                            "transparent")
+                                                    }
+                                                >
+                                                    {key}
+                                                </div>
+                                            )
+                                        )}
+                                    </div>
+                                )}
+                        </div>
+                        <span
+                            style={{
+                                fontSize: "0.9em",
+                                fontWeight: 600,
+                                color: "var(--text-muted)",
+                            }}
+                        >
+                            :
                         </span>
                         {/* Show selected filters as chips */}
-                        {this.state.folderFilters.map((folder) => (
+                        {this.state.filters.map((value) => (
                             <div
-                                key={folder}
+                                key={value}
                                 style={{
                                     display: "inline-flex",
                                     alignItems: "center",
                                     gap: "6px",
                                     padding: "4px 8px",
-                                    backgroundColor: hashStringToColor(folder),
+                                    backgroundColor: hashStringToColor(value),
                                     borderRadius: "12px",
                                     fontSize: "0.85em",
-                                    color: "#000",
+                                    color: "#1a1a1a",
                                 }}
                             >
-                                <span>{folder}</span>
+                                <span>{value}</span>
                                 <button
                                     onClick={() => {
                                         this.setState({
-                                            folderFilters:
-                                                this.state.folderFilters.filter(
-                                                    (f) => f !== folder
-                                                ),
+                                            filters: this.state.filters.filter(
+                                                (f) => f !== value
+                                            ),
                                         });
                                     }}
                                     style={{
@@ -323,22 +563,20 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                         background: "none",
                                         cursor: "pointer",
                                         fontSize: "1.2em",
-                                        color: "#000",
+                                        color: "#ffffff",
                                         padding: 0,
                                         lineHeight: "1",
                                         fontWeight: "bold",
                                     }}
-                                    title={`Remove ${folder} filter`}
+                                    title={`Remove ${value} filter`}
                                 >
                                     ×
                                 </button>
                             </div>
                         ))}
-                        {this.state.folderFilters.length > 1 && (
+                        {this.state.filters.length > 1 && (
                             <button
-                                onClick={() =>
-                                    this.setState({ folderFilters: [] })
-                                }
+                                onClick={() => this.setState({ filters: [] })}
                                 style={{
                                     padding: "4px 8px",
                                     fontSize: "0.8em",
@@ -353,7 +591,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                 Clear all
                             </button>
                         )}
-                        {this.state.folderFilters.length > 0 && (
+                        {this.state.filters.length > 0 && (
                             <span
                                 style={{
                                     fontSize: "0.85em",
@@ -369,7 +607,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                         <input
                             ref={this.filterInputRef}
                             type="text"
-                            placeholder="Type to add folder filter..."
+                            placeholder={`Type to add ${this.state.filterType} filter...`}
                             value={this.state.filterSearchText}
                             onChange={(e) =>
                                 this.setState({
@@ -377,13 +615,13 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                 })
                             }
                             onFocus={() =>
-                                this.setState({ showFolderDropdown: true })
+                                this.setState({ showFilterDropdown: true })
                             }
                             onBlur={() =>
                                 setTimeout(
                                     () =>
                                         this.setState({
-                                            showFolderDropdown: false,
+                                            showFilterDropdown: false,
                                         }),
                                     200
                                 )
@@ -392,7 +630,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                 if (e.key === "Escape") {
                                     this.setState({
                                         filterSearchText: "",
-                                        showFolderDropdown: false,
+                                        showFilterDropdown: false,
                                     });
                                 }
                             }}
@@ -406,8 +644,8 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                 color: "var(--text-normal)",
                             }}
                         />
-                        {this.state.showFolderDropdown &&
-                            filteredFolders.length > 0 && (
+                        {this.state.showFilterDropdown &&
+                            filteredValues.length > 0 && (
                                 <div
                                     style={{
                                         position: "absolute",
@@ -426,33 +664,41 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                         zIndex: 1000,
                                     }}
                                 >
-                                    {filteredFolders.map((folder) => {
+                                    {filteredValues.map((value) => {
                                         const eventCount =
-                                            this.cachedEvents!.filter(
-                                                (e) =>
-                                                    this.normalizeFolder(
-                                                        e.folder
-                                                    ) === folder
-                                            ).length;
+                                            this.cachedEvents!.filter((e) => {
+                                                const eventValue =
+                                                    e.customProps?.[
+                                                        this.state.filterType
+                                                    ];
+                                                return (
+                                                    this.normalizeValue(
+                                                        eventValue
+                                                    ) === value
+                                                );
+                                            }).length;
                                         const isSelected =
-                                            this.state.folderFilters.includes(
-                                                folder
-                                            );
+                                            this.state.filters.includes(value);
 
                                         return (
                                             <div
-                                                key={folder}
+                                                key={value}
                                                 onMouseDown={() => {
                                                     if (!isSelected) {
+                                                        // Extract the actual value (remove [[ ]] if present)
+                                                        const normalizedValue =
+                                                            this.normalizeValue(
+                                                                value
+                                                            ) || value;
                                                         this.setState({
-                                                            folderFilters: [
+                                                            filters: [
                                                                 ...this.state
-                                                                    .folderFilters,
-                                                                folder,
+                                                                    .filters,
+                                                                normalizedValue,
                                                             ],
                                                             filterSearchText:
                                                                 "",
-                                                            showFolderDropdown:
+                                                            showFilterDropdown:
                                                                 false,
                                                         });
                                                     }
@@ -500,7 +746,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                                             borderRadius: "2px",
                                                             backgroundColor:
                                                                 hashStringToColor(
-                                                                    folder
+                                                                    value
                                                                 ),
                                                             flexShrink: 0,
                                                         }}
@@ -514,7 +760,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                                                 "nowrap",
                                                         }}
                                                     >
-                                                        {folder}
+                                                        {value}
                                                     </span>
                                                     {isSelected && (
                                                         <span
