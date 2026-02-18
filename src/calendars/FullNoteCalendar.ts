@@ -70,6 +70,19 @@ function stringifyYamlAtom(v: PrintableAtom): string {
         result += "[";
         result += v.map(stringifyYamlAtom).join(",");
         result += "]";
+    } else if (typeof v === "string") {
+        // Check if string needs quotes (contains special YAML characters or wiki-links)
+        const needsQuotes =
+            /[:\[\]{}#&*!|>'"@`]/.test(v) ||
+            v.includes("[[") ||
+            v.includes("]]");
+        if (needsQuotes) {
+            // Escape any existing quotes in the string
+            const escaped = v.replace(/"/g, '\\"');
+            result += `"${escaped}"`;
+        } else {
+            result += v;
+        }
     } else {
         result += `${v}`;
     }
