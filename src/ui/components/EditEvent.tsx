@@ -190,10 +190,11 @@ export const EditEvent = ({
     const [metadata, setMetadata] = useState<Record<string, string>>(
         getInitialMetadata()
     );
-    const [newPropertyKey, setNewPropertyKey] = useState("");
+    const [newPropertyKey, setNewPropertyKey] = useState("folder");
     const [newPropertyValue, setNewPropertyValue] = useState("");
     const [showKeyDropdown, setShowKeyDropdown] = useState(false);
     const [showValueDropdown, setShowValueDropdown] = useState(false);
+    const [justAdded, setJustAdded] = useState(false);
     const [selectedKeySuggestionIndex, setSelectedKeySuggestionIndex] =
         useState(0);
     const [selectedValueSuggestionIndex, setSelectedValueSuggestionIndex] =
@@ -554,10 +555,16 @@ export const EditEvent = ({
                                 value={newPropertyKey}
                                 onChange={(e) => {
                                     setNewPropertyKey(e.target.value);
+                                    setJustAdded(false);
                                     setShowKeyDropdown(true);
                                     setSelectedKeySuggestionIndex(0);
                                 }}
-                                onFocus={() => setShowKeyDropdown(true)}
+                                onFocus={() => {
+                                    if (!justAdded) {
+                                        setShowKeyDropdown(true);
+                                    }
+                                    setJustAdded(false);
+                                }}
                                 onBlur={() =>
                                     setTimeout(
                                         () => setShowKeyDropdown(false),
@@ -668,12 +675,32 @@ export const EditEvent = ({
                                     setSelectedValueSuggestionIndex(0);
                                 }}
                                 onFocus={() => setShowValueDropdown(true)}
-                                onBlur={() =>
-                                    setTimeout(
-                                        () => setShowValueDropdown(false),
-                                        200
-                                    )
-                                }
+                                onBlur={(e) => {
+                                    // Check if we're clicking the Add button
+                                    const isClickingAddButton = (
+                                        e.relatedTarget as HTMLElement
+                                    )?.textContent?.includes("Add");
+
+                                    setTimeout(() => {
+                                        setShowValueDropdown(false);
+                                        // Auto-save on blur if both key and value are present
+                                        // But skip if user is clicking the Add button (let the button handle it)
+                                        if (
+                                            !isClickingAddButton &&
+                                            newPropertyKey &&
+                                            newPropertyValue
+                                        ) {
+                                            setMetadata({
+                                                ...metadata,
+                                                [newPropertyKey]:
+                                                    newPropertyValue,
+                                            });
+                                            setNewPropertyKey("folder");
+                                            setNewPropertyValue("");
+                                            setJustAdded(true);
+                                        }
+                                    }, 200);
+                                }}
                                 onKeyDown={(e) => {
                                     const suggestions = getValueSuggestions();
                                     if (e.key === "ArrowDown") {
@@ -711,9 +738,10 @@ export const EditEvent = ({
                                                 [newPropertyKey]:
                                                     newPropertyValue,
                                             });
-                                            setNewPropertyKey("");
+                                            setNewPropertyKey("folder");
                                             setNewPropertyValue("");
                                             setShowValueDropdown(false);
+                                            setJustAdded(true);
                                             keyInputRef.current?.focus();
                                         }
                                     }
@@ -793,8 +821,9 @@ export const EditEvent = ({
                                         ...metadata,
                                         [newPropertyKey]: newPropertyValue,
                                     });
-                                    setNewPropertyKey("");
+                                    setNewPropertyKey("folder");
                                     setNewPropertyValue("");
+                                    setJustAdded(true);
                                     keyInputRef.current?.focus();
                                 }
                             }}

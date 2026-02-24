@@ -27,6 +27,7 @@ export interface FullCalendarSettings {
     };
     timeFormat24h: boolean;
     clickToCreateEventFromMonthView: boolean;
+    openFileInsteadOfModal: boolean;
 }
 
 export const DEFAULT_SETTINGS: FullCalendarSettings = {
@@ -39,6 +40,7 @@ export const DEFAULT_SETTINGS: FullCalendarSettings = {
     },
     timeFormat24h: false,
     clickToCreateEventFromMonthView: true,
+    openFileInsteadOfModal: true,
 };
 
 const WEEKDAYS = [
@@ -245,6 +247,19 @@ export class FullCalendarSettingTab extends PluginSettingTab {
                 );
                 toggle.onChange(async (val) => {
                     this.plugin.settings.clickToCreateEventFromMonthView = val;
+                    await this.plugin.saveSettings();
+                });
+            });
+
+        new Setting(containerEl)
+            .setName("Open file instead of modal when creating/editing events")
+            .setDesc(
+                "When enabled, clicking on a day or event will open the markdown file directly in a new pane instead of showing the edit modal."
+            )
+            .addToggle((toggle) => {
+                toggle.setValue(this.plugin.settings.openFileInsteadOfModal);
+                toggle.onChange(async (val) => {
+                    this.plugin.settings.openFileInsteadOfModal = val;
                     await this.plugin.saveSettings();
                 });
             });

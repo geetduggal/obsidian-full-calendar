@@ -298,7 +298,9 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
                             style={{
                                 flex: "1 0 36px",
                                 minWidth: "36px",
-                                border: "0.5px solid #d0d0d0",
+                                border: cell.isToday
+                                    ? "1.5px solid var(--interactive-accent)"
+                                    : "0.5px solid #d0d0d0",
                                 minHeight: "32px",
                                 display: "flex",
                                 alignItems: "flex-start",
@@ -309,6 +311,8 @@ const LinearMonthComponent = (props: LinearMonthProps) => {
                                 position: "relative",
                                 backgroundColor: cell.isSelected
                                     ? "#fef9c3"
+                                    : cell.isToday
+                                    ? "#e3f2fd"
                                     : cell.isWeekend
                                     ? "#f5f5f5"
                                     : "var(--background-primary)",
