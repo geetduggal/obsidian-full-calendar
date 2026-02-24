@@ -283,7 +283,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                 const propertyPriority = (window as any).fcPropertyPriority || [
                     "folder",
                     "box",
-                    "shelve",
+                    "shelf",
                 ];
                 let colorProperty = null;
 

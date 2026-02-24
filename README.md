@@ -21,7 +21,7 @@ A compact BirdsEye-style calendar that displays an entire year at a glance. Each
 - Filter events by custom properties
 
 ### Property-Based Event Coloring
-Events are automatically colored based on configurable custom properties (default: folder, box, shelve). This provides:
+Events are automatically colored based on configurable custom properties (default: folder, box, shelf). This provides:
 - Visual grouping of related events
 - Consistent colors across all calendar views
 - Easy identification of event categories at a glance

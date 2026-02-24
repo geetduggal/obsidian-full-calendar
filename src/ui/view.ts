@@ -318,7 +318,7 @@ export class CalendarView extends ItemView {
         window.fcPropertyPriority = this.plugin.settings.propertyPriority || [
             "folder",
             "box",
-            "shelve",
+            "shelf",
         ];
 
         this.registerDomEvent(this.containerEl, "mouseenter", () => {

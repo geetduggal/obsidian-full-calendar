@@ -223,7 +223,7 @@ export function renderCalendar(
             const propertyPriority = settings?.propertyPriority || [
                 "folder",
                 "box",
-                "shelve",
+                "shelf",
             ];
             let colorProperty = null;
 

@@ -42,7 +42,7 @@ export const DEFAULT_SETTINGS: FullCalendarSettings = {
     timeFormat24h: false,
     clickToCreateEventFromMonthView: true,
     openFileInsteadOfModal: true,
-    propertyPriority: ["folder", "box", "shelve"],
+    propertyPriority: ["folder", "box", "shelf"],
 };
 
 const WEEKDAYS = [
@@ -273,7 +273,7 @@ export class FullCalendarSettingTab extends PluginSettingTab {
             )
             .addText((text) => {
                 text.setValue(this.plugin.settings.propertyPriority.join(", "));
-                text.setPlaceholder("folder, box, shelve");
+                text.setPlaceholder("folder, box, shelf");
                 text.onChange(async (val) => {
                     this.plugin.settings.propertyPriority = val
                         .split(",")
