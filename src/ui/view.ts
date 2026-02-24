@@ -124,6 +124,7 @@ export class CalendarView extends ItemView {
         }
         this.fullCalendarView = renderCalendar(calendarEl, sources, {
             forceNarrow: this.inSidebar,
+            propertyPriority: this.plugin.settings.propertyPriority,
             eventClick: async (info) => {
                 try {
                     if (
@@ -313,6 +314,12 @@ export class CalendarView extends ItemView {
                 return false;
             }
         };
+        // @ts-ignore - Store property priority settings for LinearView to access
+        window.fcPropertyPriority = this.plugin.settings.propertyPriority || [
+            "folder",
+            "box",
+            "shelve",
+        ];
 
         this.registerDomEvent(this.containerEl, "mouseenter", () => {
             this.plugin.cache.revalidateRemoteCalendars();

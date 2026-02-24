@@ -241,6 +241,19 @@
         overflow-x: hidden; /* Prevent double scrollbar */
     }
 
+    .linear-mobile-nav {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 101 !important;
+    }
+
+    .linear-filter-bar {
+        position: sticky;
+        top: 52px; /* Height of mobile nav + some padding */
+        z-index: 100;
+        margin-bottom: 8px;
+    }
+
     .linear-month-grid {
         overflow-x: auto;
         scrollbar-width: thin;

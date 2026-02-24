@@ -279,8 +279,12 @@ export class LinearView extends React.Component<any, LinearViewState> {
                 const customProps = seg.def.extendedProps || {};
 
                 // Find first non-empty property value to use for coloring
-                // Priority: folder > box > shelve > any other property
-                const propertyPriority = ["folder", "box", "shelve"];
+                // Priority: configurable via settings
+                const propertyPriority = (window as any).fcPropertyPriority || [
+                    "folder",
+                    "box",
+                    "shelve",
+                ];
                 let colorProperty = null;
 
                 for (const key of propertyPriority) {
@@ -368,12 +372,104 @@ export class LinearView extends React.Component<any, LinearViewState> {
             months.push(yearStart.plus({ months: i }));
         }
 
+        // Check if we're on mobile
+        const isMobile = window.innerWidth < 768;
+
         return (
             <div
                 className="linear-year-view"
                 onMouseUp={this.handleGlobalMouseUp}
                 onMouseLeave={this.handleGlobalMouseUp}
             >
+                {/* Mobile year navigation */}
+                {isMobile && (
+                    <div
+                        className="linear-mobile-nav"
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "8px 12px",
+                            marginBottom: "8px",
+                            backgroundColor: "var(--background-secondary)",
+                            borderRadius: "4px",
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 101,
+                        }}
+                    >
+                        <button
+                            onClick={() => {
+                                const calendar = (window as any).fc;
+                                if (calendar) {
+                                    calendar.prev();
+                                }
+                            }}
+                            style={{
+                                padding: "6px 12px",
+                                fontSize: "0.9em",
+                                border: "1px solid var(--background-modifier-border)",
+                                borderRadius: "4px",
+                                backgroundColor: "var(--background-primary)",
+                                color: "var(--text-normal)",
+                                cursor: "pointer",
+                            }}
+                        >
+                            ◀ Prev
+                        </button>
+                        <span
+                            style={{
+                                fontSize: "1.1em",
+                                fontWeight: 600,
+                                color: "var(--text-normal)",
+                            }}
+                        >
+                            {currentYear}
+                        </span>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                            <button
+                                onClick={() => {
+                                    const calendar = (window as any).fc;
+                                    if (calendar) {
+                                        calendar.today();
+                                    }
+                                }}
+                                style={{
+                                    padding: "6px 12px",
+                                    fontSize: "0.9em",
+                                    border: "1px solid var(--background-modifier-border)",
+                                    borderRadius: "4px",
+                                    backgroundColor:
+                                        "var(--background-primary)",
+                                    color: "var(--text-normal)",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                Today
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const calendar = (window as any).fc;
+                                    if (calendar) {
+                                        calendar.next();
+                                    }
+                                }}
+                                style={{
+                                    padding: "6px 12px",
+                                    fontSize: "0.9em",
+                                    border: "1px solid var(--background-modifier-border)",
+                                    borderRadius: "4px",
+                                    backgroundColor:
+                                        "var(--background-primary)",
+                                    color: "var(--text-normal)",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                Next ▶
+                            </button>
+                        </div>
+                    </div>
+                )}
                 {/* Property filter */}
                 <div
                     className="linear-filter-bar"
@@ -445,7 +541,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                                 showFilterKeyDropdown: false,
                                             });
                                         }
-                                    }, 200);
+                                    }, 300); // Increased for mobile touch events
                                 }}
                                 onKeyDown={(e) => {
                                     if (e.key === "Escape") {
@@ -490,7 +586,21 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                             (key) => (
                                                 <div
                                                     key={key}
-                                                    onMouseDown={() => {
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        this.setState({
+                                                            filterType: key,
+                                                            filterKeySearchText:
+                                                                "",
+                                                            showFilterKeyDropdown:
+                                                                false,
+                                                            filters: [], // Clear filters when changing type
+                                                            filterSearchText:
+                                                                "",
+                                                        });
+                                                    }}
+                                                    onTouchStart={(e) => {
+                                                        e.preventDefault();
                                                         this.setState({
                                                             filterType: key,
                                                             filterKeySearchText:
@@ -623,7 +733,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                         this.setState({
                                             showFilterDropdown: false,
                                         }),
-                                    200
+                                    300 // Increased for mobile touch events
                                 )
                             }
                             onKeyDown={(e) => {
@@ -683,8 +793,30 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                         return (
                                             <div
                                                 key={value}
-                                                onMouseDown={() => {
+                                                onMouseDown={(e) => {
                                                     if (!isSelected) {
+                                                        e.preventDefault();
+                                                        // Extract the actual value (remove [[ ]] if present)
+                                                        const normalizedValue =
+                                                            this.normalizeValue(
+                                                                value
+                                                            ) || value;
+                                                        this.setState({
+                                                            filters: [
+                                                                ...this.state
+                                                                    .filters,
+                                                                normalizedValue,
+                                                            ],
+                                                            filterSearchText:
+                                                                "",
+                                                            showFilterDropdown:
+                                                                false,
+                                                        });
+                                                    }
+                                                }}
+                                                onTouchStart={(e) => {
+                                                    if (!isSelected) {
+                                                        e.preventDefault();
                                                         // Extract the actual value (remove [[ ]] if present)
                                                         const normalizedValue =
                                                             this.normalizeValue(

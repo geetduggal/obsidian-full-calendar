@@ -89,6 +89,7 @@ interface ExtraRenderProps {
     ) => Promise<void>;
     toggleTask?: (event: EventApi, isComplete: boolean) => Promise<boolean>;
     forceNarrow?: boolean;
+    propertyPriority?: string[];
 }
 
 export function renderCalendar(
@@ -218,9 +219,12 @@ export function renderCalendar(
         eventMouseEnter,
 
         eventDidMount: ({ event, el, textColor }) => {
-            // Apply property-based coloring with same priority as other views
-            // Priority: folder > box > shelve > any other property
-            const propertyPriority = ["folder", "box", "shelve"];
+            // Apply property-based coloring with configurable priority
+            const propertyPriority = settings?.propertyPriority || [
+                "folder",
+                "box",
+                "shelve",
+            ];
             let colorProperty = null;
 
             for (const key of propertyPriority) {

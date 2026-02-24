@@ -28,6 +28,7 @@ export interface FullCalendarSettings {
     timeFormat24h: boolean;
     clickToCreateEventFromMonthView: boolean;
     openFileInsteadOfModal: boolean;
+    propertyPriority: string[];
 }
 
 export const DEFAULT_SETTINGS: FullCalendarSettings = {
@@ -41,6 +42,7 @@ export const DEFAULT_SETTINGS: FullCalendarSettings = {
     timeFormat24h: false,
     clickToCreateEventFromMonthView: true,
     openFileInsteadOfModal: true,
+    propertyPriority: ["folder", "box", "shelve"],
 };
 
 const WEEKDAYS = [
@@ -260,6 +262,23 @@ export class FullCalendarSettingTab extends PluginSettingTab {
                 toggle.setValue(this.plugin.settings.openFileInsteadOfModal);
                 toggle.onChange(async (val) => {
                     this.plugin.settings.openFileInsteadOfModal = val;
+                    await this.plugin.saveSettings();
+                });
+            });
+
+        new Setting(containerEl)
+            .setName("Property priority for event coloring")
+            .setDesc(
+                "Comma-separated list of property names to use for event colors, in priority order. The first property found on an event will determine its color."
+            )
+            .addText((text) => {
+                text.setValue(this.plugin.settings.propertyPriority.join(", "));
+                text.setPlaceholder("folder, box, shelve");
+                text.onChange(async (val) => {
+                    this.plugin.settings.propertyPriority = val
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter((s) => s.length > 0);
                     await this.plugin.saveSettings();
                 });
             });
