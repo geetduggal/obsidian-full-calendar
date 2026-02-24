@@ -523,7 +523,18 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                         showFilterKeyDropdown: true,
                                     });
                                 }}
-                                onBlur={() => {
+                                onBlur={(e) => {
+                                    // Don't close if clicking inside the dropdown
+                                    const relatedTarget =
+                                        e.relatedTarget as HTMLElement;
+                                    if (
+                                        relatedTarget &&
+                                        relatedTarget.closest(
+                                            ".linear-filter-key-dropdown"
+                                        )
+                                    ) {
+                                        return;
+                                    }
                                     setTimeout(() => {
                                         // If user didn't select anything, restore the current filterType
                                         if (
@@ -565,6 +576,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                             {this.state.showFilterKeyDropdown &&
                                 this.getFilterKeySuggestions().length > 0 && (
                                     <div
+                                        className="linear-filter-key-dropdown"
                                         style={{
                                             position: "absolute",
                                             top: "100%",
@@ -581,6 +593,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                                 "0 4px 12px rgba(0,0,0,0.15)",
                                             zIndex: 2000,
                                         }}
+                                        onMouseDown={(e) => e.preventDefault()}
                                     >
                                         {this.getFilterKeySuggestions().map(
                                             (key) => (
@@ -727,15 +740,26 @@ export class LinearView extends React.Component<any, LinearViewState> {
                             onFocus={() =>
                                 this.setState({ showFilterDropdown: true })
                             }
-                            onBlur={() =>
+                            onBlur={(e) => {
+                                // Don't close if clicking inside the dropdown
+                                const relatedTarget =
+                                    e.relatedTarget as HTMLElement;
+                                if (
+                                    relatedTarget &&
+                                    relatedTarget.closest(
+                                        ".linear-filter-dropdown"
+                                    )
+                                ) {
+                                    return;
+                                }
                                 setTimeout(
                                     () =>
                                         this.setState({
                                             showFilterDropdown: false,
                                         }),
                                     300 // Increased for mobile touch events
-                                )
-                            }
+                                );
+                            }}
                             onKeyDown={(e) => {
                                 if (e.key === "Escape") {
                                     this.setState({
@@ -757,6 +781,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                         {this.state.showFilterDropdown &&
                             filteredValues.length > 0 && (
                                 <div
+                                    className="linear-filter-dropdown"
                                     style={{
                                         position: "absolute",
                                         top: "100%",
@@ -773,6 +798,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                             "0 4px 12px rgba(0,0,0,0.15)",
                                         zIndex: 1000,
                                     }}
+                                    onMouseDown={(e) => e.preventDefault()}
                                 >
                                     {filteredValues.map((value) => {
                                         const eventCount =

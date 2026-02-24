@@ -238,20 +238,27 @@
 @media (max-width: 768px) {
     .linear-year-view {
         padding: 8px;
+        padding-top: 140px; /* Space for fixed nav and filter bar */
         overflow-x: hidden; /* Prevent double scrollbar */
     }
 
     .linear-mobile-nav {
-        position: sticky !important;
+        position: fixed !important;
         top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
         z-index: 101 !important;
+        margin: 0 !important;
     }
 
     .linear-filter-bar {
-        position: sticky;
-        top: 52px; /* Height of mobile nav + some padding */
-        z-index: 100;
-        margin-bottom: 8px;
+        position: fixed !important;
+        top: 52px !important; /* Height of mobile nav */
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 100 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
     }
 
     .linear-month-grid {
