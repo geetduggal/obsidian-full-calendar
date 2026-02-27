@@ -11,7 +11,8 @@ import EventCache from "src/core/EventCache";
 export async function openFileForEvent(
     cache: EventCache,
     { workspace, vault }: { workspace: Workspace; vault: Vault },
-    id: string
+    id: string,
+    openInSplit: boolean = false
 ) {
     const details = cache.getInfoForEditableEvent(id);
     if (!details) {
@@ -20,16 +21,22 @@ export async function openFileForEvent(
     const {
         location: { path, lineNumber },
     } = details;
-    let leaf = workspace.getMostRecentLeaf();
+    let leaf;
+    if (openInSplit) {
+        // Open in a new split to the right
+        leaf = workspace.getLeaf("split", "vertical");
+    } else {
+        leaf = workspace.getMostRecentLeaf();
+        if (!leaf) {
+            return;
+        }
+        if (leaf.getViewState().pinned) {
+            leaf = workspace.getLeaf("tab");
+        }
+    }
     const file = vault.getAbstractFileByPath(path);
     if (!(file instanceof TFile)) {
         return;
-    }
-    if (!leaf) {
-        return;
-    }
-    if (leaf.getViewState().pinned) {
-        leaf = workspace.getLeaf("tab");
     }
     await leaf.openFile(file);
     if (lineNumber && leaf.view instanceof MarkdownView) {
