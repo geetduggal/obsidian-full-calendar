@@ -118,8 +118,11 @@ async function createAndOpenEventFile(
                 ) {
                     const latestFilterValue =
                         activeFilter.values[activeFilter.values.length - 1];
-                    (partialEvent as any)[activeFilter.type] =
-                        latestFilterValue;
+                    // Wrap in wiki link brackets if not already wrapped
+                    const formattedValue = latestFilterValue.startsWith("[[")
+                        ? latestFilterValue
+                        : `[[${latestFilterValue}]]`;
+                    (partialEvent as any)[activeFilter.type] = formattedValue;
                 }
 
                 // Get the default calendar
@@ -278,8 +281,12 @@ export function launchCreateModal(
         // Use the most recently added filter value (last in array)
         const latestFilterValue =
             activeFilter.values[activeFilter.values.length - 1];
+        // Wrap in wiki link brackets if not already wrapped
+        const formattedValue = latestFilterValue.startsWith("[[")
+            ? latestFilterValue
+            : `[[${latestFilterValue}]]`;
         // Set the property dynamically based on filter type
-        (partialEvent as any)[activeFilter.type] = latestFilterValue;
+        (partialEvent as any)[activeFilter.type] = formattedValue;
     }
 
     new ReactModal(plugin.app, async (closeModal) =>
