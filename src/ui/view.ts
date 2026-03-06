@@ -127,13 +127,12 @@ export class CalendarView extends ItemView {
             propertyPriority: this.plugin.settings.propertyPriority,
             eventClick: async (info) => {
                 try {
-                    const isYearView = info.view.type === "linear";
                     const hasModifier =
                         info.jsEvent.getModifierState("Control") ||
                         info.jsEvent.getModifierState("Meta");
 
-                    if (hasModifier || isYearView) {
-                        // Open in split view for Command+Click or year view
+                    // Open in split pane unless in sidebar
+                    if (hasModifier || !this.inSidebar) {
                         await openFileForEvent(
                             this.plugin.cache,
                             this.app,
@@ -141,6 +140,7 @@ export class CalendarView extends ItemView {
                             true // Open in split view to the right
                         );
                     } else {
+                        // In sidebar, open edit modal
                         launchEditModal(this.plugin, info.event.id);
                     }
                 } catch (e) {
