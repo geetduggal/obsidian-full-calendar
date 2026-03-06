@@ -52,6 +52,7 @@ interface LinearViewState {
     showFilterDropdown: boolean;
     filterKeySearchText: string;
     showFilterKeyDropdown: boolean;
+    showPrivateEvents: boolean;
 }
 
 interface OptimisticTransform {
@@ -90,6 +91,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
             showFilterDropdown: false,
             filterKeySearchText: "",
             showFilterKeyDropdown: false,
+            showPrivateEvents: savedFilter?.showPrivateEvents || false,
         };
     }
 
@@ -101,6 +103,36 @@ export class LinearView extends React.Component<any, LinearViewState> {
         // Extract from [[Filename]] format if present
         const match = cleaned.match(/\[\[([^\]]+)\]\]/);
         return match ? match[1] : cleaned;
+    }
+
+    // Check if an event is private based on its folder property
+    private isEventPrivate(event: any): boolean {
+        const folderValue = event.customProps?.folder;
+        if (!folderValue) return false;
+
+        // Extract the page name from the folder value
+        const pageName = this.normalizeValue(folderValue);
+        if (!pageName) return false;
+
+        // Access Obsidian vault through global app instance
+        const app = (window as any).app;
+        if (!app || !app.vault || !app.metadataCache) {
+            return false;
+        }
+
+        // Find the file by name (with or without .md extension)
+        const file = app.vault
+            .getMarkdownFiles()
+            .find(
+                (f: any) =>
+                    f.basename === pageName || f.path === pageName + ".md"
+            );
+
+        if (!file) return false;
+
+        // Check the file's frontmatter for private: true
+        const metadata = app.metadataCache.getFileCache(file);
+        return metadata?.frontmatter?.private === true;
     }
 
     // Get all unique property keys from events
@@ -203,6 +235,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
         (window as any).linearViewFilterState = {
             filterType: this.state.filterType,
             filters: this.state.filters,
+            showPrivateEvents: this.state.showPrivateEvents,
         };
     }
 
@@ -364,6 +397,11 @@ export class LinearView extends React.Component<any, LinearViewState> {
                 const normalized = this.normalizeValue(eventValue);
                 return normalized && this.state.filters.includes(normalized);
             });
+        }
+
+        // Filter out private events unless showPrivateEvents is enabled
+        if (!this.state.showPrivateEvents) {
+            events = events.filter((e) => !this.isEventPrivate(e));
         }
 
         // Generate 12 months
@@ -952,6 +990,51 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                     })}
                                 </div>
                             )}
+                    </div>
+                    {/* Privacy checkbox */}
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "4px 0",
+                            borderTop:
+                                "1px solid var(--background-modifier-border)",
+                            paddingTop: "8px",
+                            marginTop: "4px",
+                        }}
+                    >
+                        <label
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                cursor: "pointer",
+                                fontSize: "0.9em",
+                                color: "var(--text-muted)",
+                            }}
+                        >
+                            <input
+                                type="checkbox"
+                                checked={this.state.showPrivateEvents}
+                                onChange={(e) =>
+                                    this.setState({
+                                        showPrivateEvents: e.target.checked,
+                                    })
+                                }
+                                style={{ cursor: "pointer" }}
+                            />
+                            <span>Show private events</span>
+                        </label>
+                        <span
+                            style={{
+                                fontSize: "0.85em",
+                                color: "var(--text-faint)",
+                                marginLeft: "8px",
+                            }}
+                        >
+                            (events linked to folders with private: true)
+                        </span>
                     </div>
                 </div>
                 <div
