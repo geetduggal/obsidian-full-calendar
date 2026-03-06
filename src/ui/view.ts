@@ -127,10 +127,13 @@ export class CalendarView extends ItemView {
             propertyPriority: this.plugin.settings.propertyPriority,
             eventClick: async (info) => {
                 try {
-                    if (
+                    const isYearView = info.view.type === "linear";
+                    const hasModifier =
                         info.jsEvent.getModifierState("Control") ||
-                        info.jsEvent.getModifierState("Meta")
-                    ) {
+                        info.jsEvent.getModifierState("Meta");
+
+                    if (hasModifier || isYearView) {
+                        // Open in split view for Command+Click or year view
                         await openFileForEvent(
                             this.plugin.cache,
                             this.app,
