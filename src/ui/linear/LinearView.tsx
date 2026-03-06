@@ -105,14 +105,10 @@ export class LinearView extends React.Component<any, LinearViewState> {
         return match ? match[1] : cleaned;
     }
 
-    // Check if an event is private based on its folder property
+    // Check if an event is private based on any of its properties
     private isEventPrivate(event: any): boolean {
-        const folderValue = event.customProps?.folder;
-        if (!folderValue) return false;
-
-        // Extract the page name from the folder value
-        const pageName = this.normalizeValue(folderValue);
-        if (!pageName) return false;
+        const customProps = event.customProps;
+        if (!customProps) return false;
 
         // Access Obsidian vault through global app instance
         const app = (window as any).app;
@@ -120,19 +116,37 @@ export class LinearView extends React.Component<any, LinearViewState> {
             return false;
         }
 
-        // Find the file by name (with or without .md extension)
-        const file = app.vault
-            .getMarkdownFiles()
-            .find(
-                (f: any) =>
-                    f.basename === pageName || f.path === pageName + ".md"
-            );
+        // Check all custom properties for links to private pages
+        for (const [key, value] of Object.entries(customProps)) {
+            if (!value || typeof value !== "string") continue;
 
-        if (!file) return false;
+            // Skip non-property fields
+            if (["isTask", "taskCompleted"].includes(key)) continue;
 
-        // Check the file's frontmatter for private: true
-        const metadata = app.metadataCache.getFileCache(file);
-        return metadata?.frontmatter?.private === true;
+            // Extract the page name from the property value
+            const pageName = this.normalizeValue(value);
+            if (!pageName) continue;
+
+            // Find the file by name (with or without .md extension)
+            const file = app.vault
+                .getMarkdownFiles()
+                .find(
+                    (f: any) =>
+                        f.basename === pageName ||
+                        f.path === pageName + ".md" ||
+                        f.path === pageName
+                );
+
+            if (!file) continue;
+
+            // Check the file's frontmatter for private: true
+            const metadata = app.metadataCache.getFileCache(file);
+            if (metadata?.frontmatter?.private === true) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Get all unique property keys from events
