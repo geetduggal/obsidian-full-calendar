@@ -441,8 +441,8 @@ export class LinearView extends React.Component<any, LinearViewState> {
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
-                            padding: "8px 12px",
-                            marginBottom: "8px",
+                            padding: "4px 8px",
+                            marginBottom: "4px",
                             backgroundColor: "var(--background-secondary)",
                             borderRadius: "4px",
                             position: "sticky",
@@ -526,13 +526,13 @@ export class LinearView extends React.Component<any, LinearViewState> {
                 <div
                     className="linear-filter-bar"
                     style={{
-                        padding: "8px 12px",
-                        marginBottom: "12px",
+                        padding: "6px 10px",
+                        marginBottom: "6px",
                         backgroundColor: "var(--background-secondary)",
                         borderRadius: "4px",
                         display: "flex",
                         flexDirection: "column",
-                        gap: "8px",
+                        gap: "6px",
                     }}
                 >
                     <div
@@ -545,7 +545,7 @@ export class LinearView extends React.Component<any, LinearViewState> {
                     >
                         <span
                             style={{
-                                fontSize: "0.9em",
+                                fontSize: "0.85em",
                                 fontWeight: 600,
                                 color: "var(--text-muted)",
                             }}
@@ -615,9 +615,9 @@ export class LinearView extends React.Component<any, LinearViewState> {
                                     }
                                 }}
                                 style={{
-                                    padding: "4px 8px",
-                                    fontSize: "0.85em",
-                                    borderRadius: "4px",
+                                    padding: "3px 6px",
+                                    fontSize: "0.8em",
+                                    borderRadius: "3px",
                                     border: "1px solid var(--background-modifier-border)",
                                     backgroundColor:
                                         "var(--background-primary)",
@@ -822,10 +822,10 @@ export class LinearView extends React.Component<any, LinearViewState> {
                             }}
                             style={{
                                 width: "100%",
-                                padding: "6px 8px",
-                                fontSize: "0.9em",
+                                padding: "4px 6px",
+                                fontSize: "0.85em",
                                 border: "1px solid var(--background-modifier-border)",
-                                borderRadius: "4px",
+                                borderRadius: "3px",
                                 backgroundColor: "var(--background-primary)",
                                 color: "var(--text-normal)",
                             }}
@@ -1010,21 +1010,21 @@ export class LinearView extends React.Component<any, LinearViewState> {
                         style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
-                            padding: "4px 0",
+                            gap: "6px",
+                            padding: "4px 0 0 0",
                             borderTop:
                                 "1px solid var(--background-modifier-border)",
-                            paddingTop: "8px",
-                            marginTop: "4px",
+                            paddingTop: "4px",
+                            marginTop: "2px",
                         }}
                     >
                         <label
                             style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "6px",
+                                gap: "4px",
                                 cursor: "pointer",
-                                fontSize: "0.9em",
+                                fontSize: "0.8em",
                                 color: "var(--text-muted)",
                             }}
                         >
@@ -1042,9 +1042,9 @@ export class LinearView extends React.Component<any, LinearViewState> {
                         </label>
                         <span
                             style={{
-                                fontSize: "0.85em",
+                                fontSize: "0.75em",
                                 color: "var(--text-faint)",
-                                marginLeft: "8px",
+                                marginLeft: "6px",
                             }}
                         >
                             (events linked to folders with private: true)

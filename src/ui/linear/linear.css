@@ -1,7 +1,7 @@
 /* Linear Calendar Year View Styles */
 
 .linear-year-view {
-    padding: 20px;
+    padding: 8px 12px;
     background-color: var(--background-primary);
     overflow: auto;
     height: 100%;
@@ -12,12 +12,12 @@
 .linear-header {
     display: grid;
     grid-template-columns: 50px 1fr;
-    margin-bottom: 10px;
+    margin-bottom: 4px;
     position: sticky;
     top: 0;
     background-color: var(--background-primary);
     z-index: 10;
-    padding-bottom: 5px;
+    padding-bottom: 3px;
     border-bottom: 2px solid var(--background-modifier-border);
 }
 
