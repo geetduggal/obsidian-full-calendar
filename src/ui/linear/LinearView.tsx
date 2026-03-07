@@ -531,8 +531,10 @@ export class LinearView extends React.Component<any, LinearViewState> {
                         backgroundColor: "var(--background-secondary)",
                         borderRadius: "4px",
                         display: "flex",
-                        flexDirection: "column",
-                        gap: "6px",
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        gap: "8px",
                     }}
                 >
                     <div
@@ -778,7 +780,13 @@ export class LinearView extends React.Component<any, LinearViewState> {
                             </span>
                         )}
                     </div>
-                    <div style={{ position: "relative", flex: "1" }}>
+                    <div
+                        style={{
+                            position: "relative",
+                            flex: "1 1 auto",
+                            minWidth: "200px",
+                        }}
+                    >
                         <input
                             ref={this.filterInputRef}
                             type="text"
@@ -1011,11 +1019,10 @@ export class LinearView extends React.Component<any, LinearViewState> {
                             display: "flex",
                             alignItems: "center",
                             gap: "6px",
-                            padding: "4px 0 0 0",
-                            borderTop:
+                            borderLeft:
                                 "1px solid var(--background-modifier-border)",
-                            paddingTop: "4px",
-                            marginTop: "2px",
+                            paddingLeft: "8px",
+                            marginLeft: "auto",
                         }}
                     >
                         <label
